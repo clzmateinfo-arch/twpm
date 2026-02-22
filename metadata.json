@@ -1,0 +1,5 @@
+{
+  "name": "ClinQ - Triage and Ward Patient Management System",
+  "description": "A comprehensive medical triage and ward management system for Malwathuhiripitiya Divisional Hospital, featuring automated triage, vital signs monitoring, and role-based portals.",
+  "requestFramePermissions": []
+}
