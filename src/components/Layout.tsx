@@ -50,14 +50,14 @@ export const Layout: React.FC<{
   const criticalCount = criticalPatients.length;
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} />, roles: [UserRole.NURSE, UserRole.DOCTOR, UserRole.ADMIN] },
+    { id: 'dashboard', label: t.dashboard, icon: <LayoutDashboard size={20} />, roles: [UserRole.NURSE, UserRole.DOCTOR, UserRole.ADMIN] },
     { id: 'registration', label: t.patientRegistration, icon: <UserPlus size={20} />, roles: [UserRole.NURSE, UserRole.ADMIN] },
     { id: 'vitals', label: t.vitalSigns, icon: <Activity size={20} />, roles: [UserRole.NURSE, UserRole.ADMIN] },
     { id: 'queue', label: t.priorityQueue, icon: <ClipboardList size={20} />, roles: [UserRole.DOCTOR, UserRole.NURSE, UserRole.ADMIN] },
     { id: 'wards', label: t.wardManagement, icon: <Stethoscope size={20} />, roles: [UserRole.ADMIN, UserRole.DOCTOR] },
-    { id: 'users', label: 'User Directory', icon: <UserPlus size={20} />, roles: [UserRole.ADMIN] },
+    { id: 'users', label: t.userDirectory, icon: <UserPlus size={20} />, roles: [UserRole.ADMIN] },
     { id: 'audit', label: t.auditTrail, icon: <ShieldCheck size={20} />, roles: [UserRole.ADMIN, UserRole.IT_SUPPORT] },
-    { id: 'settings', label: 'Settings', icon: <Settings size={20} />, roles: [UserRole.ADMIN, UserRole.IT_SUPPORT] },
+    { id: 'settings', label: t.settings, icon: <Settings size={20} />, roles: [UserRole.ADMIN, UserRole.IT_SUPPORT] },
   ];
 
   const filteredNavItems = navItems.filter(item => currentUser && item.roles.includes(currentUser.role));

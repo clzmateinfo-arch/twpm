@@ -23,28 +23,28 @@ export const WardManagement: React.FC = () => {
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex items-center">
             <Users className="text-emerald-500 mr-4" size={32} />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Total Patients</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">{t.totalPatients}</p>
               <p className="text-2xl font-bold text-white">{analytics.total}</p>
             </div>
           </div>
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex items-center">
             <Clock className="text-amber-500 mr-4" size={32} />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">In Queue</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">{t.inQueue}</p>
               <p className="text-2xl font-bold text-white">{analytics.inQueue}</p>
             </div>
           </div>
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex items-center">
             <Bed className="text-blue-500 mr-4" size={32} />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Admitted</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">{t.admitted}</p>
               <p className="text-2xl font-bold text-white">{analytics.admitted}</p>
             </div>
           </div>
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex items-center">
             <Users className="text-purple-500 mr-4" size={32} />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Discharged</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">{t.discharged}</p>
               <p className="text-2xl font-bold text-white">{analytics.discharged}</p>
             </div>
           </div>
@@ -123,7 +123,7 @@ export const WardManagement: React.FC = () => {
       </div>
 
       <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8 shadow-xl">
-        <h3 className="text-lg font-bold text-white mb-6">Ward Occupancy Overview</h3>
+        <h3 className="text-lg font-bold text-white mb-6">{t.wardOccupancyOverview}</h3>
         <div className="h-64 flex items-end justify-around px-4">
           {wards.map(ward => (
             <div key={ward.id} className="flex flex-col items-center w-full max-w-[100px]">
@@ -162,7 +162,7 @@ export const AuditTrail: React.FC = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
           <input
             type="text"
-            placeholder="Search logs..."
+            placeholder={t.searchLogs}
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all w-full md:w-64"
@@ -174,10 +174,10 @@ export const AuditTrail: React.FC = () => {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-900/50">
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Timestamp</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">User</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Action</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Details</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.timestamp}</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.user}</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.action}</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.details}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
@@ -215,7 +215,8 @@ export const AuditTrail: React.FC = () => {
 };
 
 export const UserManagement: React.FC = () => {
-  const { currentUser } = useHospital();
+  const { currentUser, language } = useHospital();
+  const t = TRANSLATIONS[language];
   const [users, setUsers] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [formData, setFormData] = React.useState({ name: '', username: '', role: 'NURSE' });
@@ -255,7 +256,7 @@ export const UserManagement: React.FC = () => {
   };
 
   const handleDeactivate = async (id: string) => {
-    if (!window.confirm('Are you sure you want to deactivate this user?')) return;
+    if (!window.confirm(t.deactivateConfirm)) return;
     try {
       const token = localStorage.getItem('twpms_token');
       await axios.delete(`${API_URL}/users/${id}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -272,7 +273,7 @@ export const UserManagement: React.FC = () => {
           <UserPlus className="text-purple-500" size={24} />
         </div>
         <div>
-          <h3 className="text-xl font-bold text-white">System User Management</h3>
+          <h3 className="text-xl font-bold text-white">{t.systemUserManagement}</h3>
           <p className="text-sm text-slate-400">Create and manage staff accounts</p>
         </div>
       </div>
@@ -280,35 +281,35 @@ export const UserManagement: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Create User Form */}
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
-          <h4 className="text-md font-bold text-white">Provision New Account</h4>
+          <h4 className="text-md font-bold text-white">{t.provisionAccount}</h4>
 
           <form onSubmit={handleCreateUser} className="space-y-4">
             <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500 block mb-2">Full Name</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500 block mb-2">{t.fullName}</label>
               <input required type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white" />
             </div>
             <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500 block mb-2">Username</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500 block mb-2">{t.username}</label>
               <input required type="text" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value.toLowerCase() })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white" />
             </div>
             <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500 block mb-2">System Role</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500 block mb-2">{t.systemRole}</label>
               <select value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white">
-                <option value="NURSE">Nurse</option>
-                <option value="DOCTOR">Doctor</option>
-                <option value="ADMIN">Administrator</option>
+                <option value="NURSE">{t.nursePortal}</option>
+                <option value="DOCTOR">{t.doctorPortal}</option>
+                <option value="ADMIN">{t.adminPortal}</option>
               </select>
             </div>
             {error && <p className="text-sm text-rose-500">{error}</p>}
 
             <button type="submit" className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold px-6 py-3 rounded-lg transition-all mt-4">
-              Create Account
+              {t.createAccount}
             </button>
           </form>
 
           {tempCreds && (
             <div className="mt-6 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
-              <h5 className="text-emerald-500 font-bold mb-2 flex items-center"><ShieldCheck size={16} className="mr-2" /> Credentials Generated</h5>
+              <h5 className="text-emerald-500 font-bold mb-2 flex items-center"><ShieldCheck size={16} className="mr-2" /> {t.credentialsGenerated}</h5>
               <p className="text-sm text-slate-300 mb-1">Username: <span className="font-mono text-white ml-2">{tempCreds.username}</span></p>
               <p className="text-sm text-slate-300">Temp Password: <span className="font-mono text-white bg-slate-950 px-2 py-1 rounded ml-2">{tempCreds.tempPassword}</span></p>
               <p className="text-xs text-amber-500 mt-3 flex items-center"><AlertTriangle size={12} className="mr-1" /> Make sure to copy this password now. It will not be shown again.</p>
@@ -318,10 +319,10 @@ export const UserManagement: React.FC = () => {
 
         {/* Users List */}
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
-          <h4 className="text-md font-bold text-white mb-6">Active Staff Directory</h4>
+          <h4 className="text-md font-bold text-white mb-6">{t.staffDirectory}</h4>
 
           {loading ? (
-            <p className="text-slate-500 italic">Loading directory...</p>
+            <p className="text-slate-500 italic">{t.loadingDirectory}</p>
           ) : (
             <div className="space-y-3">
               {users.map((u, i) => (
@@ -339,7 +340,7 @@ export const UserManagement: React.FC = () => {
                   </div>
                   <div className="flex items-center space-x-4">
                     <span className={`px-2 py-1 text-[10px] uppercase font-bold tracking-widest rounded ${u.active ? 'bg-emerald-500/20 text-emerald-500' : 'bg-rose-500/20 text-rose-500'}`}>
-                      {u.active ? 'Active' : 'Disabled'}
+                      {u.active ? t.active : t.disabled}
                     </span>
                     {u.id !== currentUser?.id && u.active && (
                       <button onClick={() => handleDeactivate(u.id)} className="p-2 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all" title="Deactivate User">

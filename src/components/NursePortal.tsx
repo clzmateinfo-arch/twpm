@@ -72,7 +72,7 @@ export const PatientRegistration: React.FC = () => {
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                placeholder="Full Name"
+                placeholder={t.name}
               />
             </div>
             <div className="space-y-2">
@@ -83,7 +83,7 @@ export const PatientRegistration: React.FC = () => {
                 value={formData.nic}
                 onChange={e => setFormData({ ...formData, nic: e.target.value })}
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                placeholder="NIC or ID"
+                placeholder={t.nic}
               />
             </div>
             <div className="space-y-2">
@@ -117,7 +117,7 @@ export const PatientRegistration: React.FC = () => {
               value={formData.address}
               onChange={e => setFormData({ ...formData, address: e.target.value })}
               className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all h-24"
-              placeholder="Full Address"
+              placeholder={t.address}
             />
           </div>
 
@@ -208,14 +208,14 @@ export const VitalSignsEntry: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Select Patient</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">{t.patient}</label>
             <select
               required
               value={selectedPatientId}
               onChange={e => setSelectedPatientId(e.target.value)}
               className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
             >
-              <option value="">-- Select Patient in Triage --</option>
+              <option value="">-- {t.patient} --</option>
               {triagePatients.map(p => (
                 <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
               ))}

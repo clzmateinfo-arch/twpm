@@ -41,18 +41,18 @@ export const PriorityQueue: React.FC<{ onSelectPatient: (p: Patient) => void }> 
           <ClipboardList className="text-emerald-500 mr-3" size={20} />
           <h3 className="text-lg font-bold text-white">{t.priorityQueue}</h3>
         </div>
-        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{queue.length} Patients Waiting</span>
+        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{queue.length} {t.waitingPatients}</span>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-900/50">
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Priority</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Patient</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Symptoms</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Vitals</th>
-              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Action</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.priority}</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.patient}</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.symptoms}</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.vitals}</th>
+              <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">{t.action}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
@@ -101,7 +101,7 @@ export const PriorityQueue: React.FC<{ onSelectPatient: (p: Patient) => void }> 
             ))}
             {queue.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-500 italic">No patients in queue</td>
+                <td colSpan={5} className="px-6 py-12 text-center text-slate-500 italic">{t.noPatients}</td>
               </tr>
             )}
           </tbody>
@@ -200,19 +200,19 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
                 onClick={() => setActiveTab('vitals')}
                 className={`text-sm font-bold uppercase tracking-widest px-4 py-2 ${activeTab === 'vitals' ? 'text-emerald-500 border-b-2 border-emerald-500' : 'text-slate-500 hover:text-slate-300'}`}
               >
-                Vitals & Notes
+                {t.vitals}
               </button>
               <button
                 onClick={() => setActiveTab('treatment')}
                 className={`text-sm font-bold uppercase tracking-widest px-4 py-2 ${activeTab === 'treatment' ? 'text-emerald-500 border-b-2 border-emerald-500' : 'text-slate-500 hover:text-slate-300'}`}
               >
-                Treatment Plan
+                {t.treatmentPlan}
               </button>
               <button
                 onClick={() => setActiveTab('discharge')}
                 className={`text-sm font-bold uppercase tracking-widest px-4 py-2 ${activeTab === 'discharge' ? 'text-emerald-500 border-b-2 border-emerald-500' : 'text-slate-500 hover:text-slate-300'}`}
               >
-                Discharge
+                {t.discharge}
               </button>
             </div>
 
@@ -262,7 +262,7 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
                     onClick={() => addConsultationNotes(patient.id, notes)}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-8 py-3 rounded-xl transition-all"
                   >
-                    {t.save} Notes
+                    {t.saveNotes}
                   </button>
                 </div>
               </div>
@@ -272,7 +272,7 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
               <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                 <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-800">
                   <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4 flex items-center">
-                    <Activity size={14} className="mr-2" /> Prescribe Medication
+                    <Activity size={14} className="mr-2" /> {t.prescribeMed}
                   </h4>
                   <div className="flex gap-2 mb-4">
                     <input type="text" placeholder="Name" value={medName} onChange={e => setMedName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
@@ -316,11 +316,11 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
               <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                 <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-800">
                   <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-6 flex items-center">
-                    <FileText size={14} className="mr-2" /> Final Discharge Summary
+                    <FileText size={14} className="mr-2" /> {t.discharge}
                   </h4>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Final Diagnosis</label>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t.diagnosis}</label>
                       <input
                         type="text"
                         value={dischargeSummary.diagnosis}
@@ -329,7 +329,7 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Post-Discharge Advice</label>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t.advice}</label>
                       <textarea
                         value={dischargeSummary.advice}
                         onChange={e => setDischargeSummary({ ...dischargeSummary, advice: e.target.value })}
@@ -337,7 +337,7 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Follow-Up Date</label>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t.followUp}</label>
                       <input
                         type="date"
                         value={dischargeSummary.followUpDate}
@@ -352,7 +352,7 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
                       }}
                       className="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-4 rounded-xl shadow-lg mt-4 transition-all"
                     >
-                      Confirm Discharge
+                      {t.confirmDischarge}
                     </button>
                   </div>
                 </div>
@@ -370,7 +370,7 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
                   onChange={e => setSelectedWard(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
                 >
-                  <option value="">Select Ward</option>
+                  <option value="">{t.ward}</option>
                   {wards.map(w => (
                     <option key={w.id} value={w.id} disabled={w.occupied >= w.capacity}>
                       {w.name} ({w.occupied}/{w.capacity})
@@ -385,7 +385,7 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
                   }}
                   className="w-full bg-slate-700 hover:bg-emerald-600 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold py-3 rounded-xl transition-all text-sm"
                 >
-                  Admit to Ward
+                  {t.admit}
                 </button>
                 {/* Discharge button moved to Discharge tab */}
               </div>

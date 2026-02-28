@@ -3,12 +3,12 @@ import { useHospital } from '../HospitalContext';
 import { TRANSLATIONS, TriageLevel } from '../types';
 import { Users, Activity, Bed, AlertCircle, TrendingUp, Clock, User } from 'lucide-react';
 
-const StatCard: React.FC<{ 
-  label: string; 
-  value: string | number; 
-  icon: React.ReactNode; 
-  trend?: string; 
-  color: string 
+const StatCard: React.FC<{
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+  trend?: string;
+  color: string
 }> = ({ label, value, icon, trend, color }) => (
   <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 shadow-xl">
     <div className="flex items-center justify-between mb-4">
@@ -40,31 +40,31 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          label="Total Patients" 
-          value={totalPatients} 
-          icon={<Users size={24} />} 
-          trend="+12%" 
-          color="bg-emerald-500" 
+        <StatCard
+          label={t.totalPatients}
+          value={totalPatients}
+          icon={<Users size={24} />}
+          trend="+12%"
+          color="bg-emerald-500"
         />
-        <StatCard 
-          label="Critical Cases" 
-          value={criticalPatients} 
-          icon={<AlertCircle size={24} />} 
-          color="bg-rose-500" 
+        <StatCard
+          label={t.criticalCases}
+          value={criticalPatients}
+          icon={<AlertCircle size={24} />}
+          color="bg-rose-500"
         />
-        <StatCard 
-          label="Bed Occupancy" 
-          value={`${occupiedBeds}/${totalBeds}`} 
-          icon={<Bed size={24} />} 
-          color="bg-amber-500" 
+        <StatCard
+          label={t.wardManagement}
+          value={`${occupiedBeds}/${totalBeds}`}
+          icon={<Bed size={24} />}
+          color="bg-amber-500"
         />
-        <StatCard 
-          label="Avg. Wait Time" 
-          value={avgWaitTime} 
-          icon={<Clock size={24} />} 
-          trend="-2m" 
-          color="bg-indigo-500" 
+        <StatCard
+          label={t.avgWaitTime}
+          value={avgWaitTime}
+          icon={<Clock size={24} />}
+          trend="-2m"
+          color="bg-indigo-500"
         />
       </div>
 
@@ -72,16 +72,16 @@ export const Dashboard: React.FC = () => {
         <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8 shadow-xl">
           <h3 className="text-lg font-bold text-white mb-6 flex items-center">
             <Activity className="text-emerald-500 mr-3" size={20} />
-            Real-time Triage Distribution
+            {t.triageDistribution}
           </h3>
           <div className="flex items-center justify-around h-48">
             {[
-              { label: 'Critical', count: patients.filter(p => p.triageLevel === TriageLevel.CRITICAL).length, color: 'bg-rose-500' },
-              { label: 'Urgent', count: patients.filter(p => p.triageLevel === TriageLevel.URGENT).length, color: 'bg-amber-500' },
-              { label: 'Non-urgent', count: patients.filter(p => p.triageLevel === TriageLevel.NON_URGENT).length, color: 'bg-emerald-500' },
+              { label: t.critical, count: patients.filter(p => p.triageLevel === TriageLevel.CRITICAL).length, color: 'bg-rose-500' },
+              { label: t.urgent, count: patients.filter(p => p.triageLevel === TriageLevel.URGENT).length, color: 'bg-amber-500' },
+              { label: t.nonUrgent, count: patients.filter(p => p.triageLevel === TriageLevel.NON_URGENT).length, color: 'bg-emerald-500' },
             ].map((item, i) => (
               <div key={i} className="flex flex-col items-center">
-                <div 
+                <div
                   className={`w-16 rounded-t-lg ${item.color} transition-all duration-1000`}
                   style={{ height: `${(item.count / totalPatients) * 150 + 10}px` }}
                 ></div>
@@ -95,7 +95,7 @@ export const Dashboard: React.FC = () => {
         <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8 shadow-xl">
           <h3 className="text-lg font-bold text-white mb-6 flex items-center">
             <Users className="text-emerald-500 mr-3" size={20} />
-            Recent Admissions
+            {t.recentAdmissions}
           </h3>
           <div className="space-y-4">
             {patients.filter(p => p.status === 'ADMITTED').slice(-4).reverse().map(p => (
@@ -106,7 +106,7 @@ export const Dashboard: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-white">{p.name}</p>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest">{p.wardId} • Bed {p.bedNumber}</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest">{p.wardId} • {t.beds} {p.bedNumber}</p>
                   </div>
                 </div>
                 <span className="text-[10px] font-bold text-slate-500">{new Date(p.registrationDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
