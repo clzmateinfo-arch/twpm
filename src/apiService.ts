@@ -1,47 +1,88 @@
+/// <reference types="vite/client" />
+import axios from 'axios';
 import { Patient, Vitals, TriageLevel } from './types';
+import { io, Socket } from 'socket.io-client';
 
-/**
- * Placeholder API Service Layer
- * In a real application, these would use axios or fetch to communicate with the backend.
- */
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+
+let socket: Socket | null = null;
+
+// Axios Interceptor for JWT
+axios.interceptors.request.use((config) => {
+  const token = localStorage.getItem('twpms_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 export const apiService = {
-  registerPatient: async (patient: Omit<Patient, 'id' | 'registrationDate' | 'status'>): Promise<Patient> => {
-    console.log('API: Registering patient', patient);
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return {
-      ...patient,
-      id: 'P' + Math.floor(Math.random() * 1000).toString().padStart(3, '0'),
-      registrationDate: new Date().toISOString(),
-      status: 'TRIAGE'
-    };
+  initSocket: (onPatientUpdated: (p: Patient) => void, onWardUpdated: (w: any) => void) => {
+    if (!socket) {
+      socket = io(SOCKET_URL);
+      socket.on('PATIENT_UPDATED', onPatientUpdated);
+      socket.on('WARD_UPDATED', onWardUpdated);
+      socket.on('CRITICAL_ALERT', (p: Patient) => {
+        if (Notification.permission === 'granted') {
+          new Notification(`CRITICAL ALERT: ${p.name}`, {
+            body: `Patient ${p.id} has critical vitals!`,
+            icon: '/vite.svg'
+          });
+        }
+      });
+    }
+  },
+  fetchData: async () => {
+    const res = await axios.get(`${API_URL}/data`);
+    return res.data;
   },
 
-  updateVitals: async (patientId: string, vitals: Vitals, triageLevel: TriageLevel): Promise<void> => {
-    console.log('API: Updating vitals', { patientId, vitals, triageLevel });
-    await new Promise(resolve => setTimeout(resolve, 500));
+  registerPatient: async (patient: Omit<Patient, 'id' | 'registrationDate' | 'status'>, userId: string, userName: string): Promise<Patient> => {
+    const res = await axios.post(`${API_URL}/patients`, patient, {
+      headers: { 'x-user-id': userId, 'x-user-name': userName }
+    });
+    return res.data;
   },
 
-  getTriageQueue: async (): Promise<Patient[]> => {
-    console.log('API: Fetching triage queue');
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return []; // Mock data handled by context in this demo
+  updateVitals: async (patientId: string, vitals: Vitals, triageLevel: TriageLevel, userId: string, userName: string): Promise<void> => {
+    await axios.put(`${API_URL}/patients/${patientId}/vitals`, { vitals, triageLevel }, {
+      headers: { 'x-user-id': userId, 'x-user-name': userName }
+    });
   },
 
-  admitPatient: async (patientId: string, wardId: string, bedNumber: string): Promise<void> => {
-    console.log('API: Admitting patient', { patientId, wardId, bedNumber });
-    await new Promise(resolve => setTimeout(resolve, 500));
+  addConsultationNotes: async (patientId: string, notes: string, userId: string, userName: string): Promise<void> => {
+    await axios.put(`${API_URL}/patients/${patientId}/notes`, { notes }, {
+      headers: { 'x-user-id': userId, 'x-user-name': userName }
+    });
   },
 
-  getWardStatus: async (): Promise<any> => {
-    console.log('API: Fetching ward status');
-    await new Promise(resolve => setTimeout(resolve, 500));
+  admitPatient: async (patientId: string, wardId: string, bedNumber: string, userId: string, userName: string): Promise<void> => {
+    await axios.put(`${API_URL}/patients/${patientId}/admit`, { wardId, bedNumber }, {
+      headers: { 'x-user-id': userId, 'x-user-name': userName }
+    });
   },
 
-  getAuditTrail: async (): Promise<any[]> => {
-    console.log('API: Fetching audit trail');
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return [];
+  logLogin: async (userId: string, userName: string): Promise<void> => {
+    await axios.post(`${API_URL}/login-log`, {}, {
+      headers: { 'x-user-id': userId, 'x-user-name': userName }
+    });
+  },
+
+  dischargePatient: async (patientId: string, summary: any, userId: string, userName: string): Promise<void> => {
+    await axios.put(`${API_URL}/patients/${patientId}/discharge`, { summary }, {
+      headers: { 'x-user-id': userId, 'x-user-name': userName }
+    });
+  },
+
+  fetchAnalytics: async (): Promise<any> => {
+    const res = await axios.get(`${API_URL}/analytics`);
+    return res.data;
+  },
+
+  updateTreatment: async (patientId: string, treatmentPlan: any, userId: string, userName: string): Promise<void> => {
+    await axios.put(`${API_URL}/patients/${patientId}/treatment`, { treatmentPlan }, {
+      headers: { 'x-user-id': userId, 'x-user-name': userName }
+    });
   }
 };

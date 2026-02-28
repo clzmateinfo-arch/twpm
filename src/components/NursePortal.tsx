@@ -3,6 +3,8 @@ import { useHospital } from '../HospitalContext';
 import { Gender, TRANSLATIONS, TRIAGE_LOGIC, TriageLevel } from '../types';
 import { UserPlus, Activity, CheckCircle2, AlertCircle } from 'lucide-react';
 
+const COMMON_SYMPTOMS = ['Fever', 'Cough', 'Shortness of breath', 'Chest pain', 'Severe dizziness', 'Headache', 'Vomiting'];
+
 export const PatientRegistration: React.FC = () => {
   const { registerPatient, language } = useHospital();
   const t = TRANSLATIONS[language];
@@ -12,22 +14,40 @@ export const PatientRegistration: React.FC = () => {
     dob: '',
     gender: Gender.MALE,
     contact: '',
-    address: '',
-    symptoms: ''
+    address: ''
   });
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
+  const [customSymptom, setCustomSymptom] = useState('');
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    registerPatient({
-      ...formData,
-      symptoms: formData.symptoms.split(',').map(s => s.trim()).filter(s => s !== ''),
-      triageLevel: TriageLevel.NON_URGENT // Initial default
-    });
-    setSuccess(true);
-    setFormData({ name: '', nic: '', dob: '', gender: Gender.MALE, contact: '', address: '', symptoms: '' });
-    setTimeout(() => setSuccess(false), 3000);
+    setError('');
+    setLoading(true);
+
+    try {
+      const finalSymptoms = [...selectedSymptoms];
+      if (customSymptom.trim()) finalSymptoms.push(...customSymptom.split(',').map(s => s.trim()));
+
+      await registerPatient({
+        ...formData,
+        symptoms: finalSymptoms.filter(s => s !== ''),
+        triageLevel: TriageLevel.NON_URGENT
+      });
+      setSuccess(true);
+      setFormData({ name: '', nic: '', dob: '', gender: Gender.MALE, contact: '', address: '' });
+      setSelectedSymptoms([]);
+      setCustomSymptom('');
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
+
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -101,23 +121,42 @@ export const PatientRegistration: React.FC = () => {
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">{t.symptoms} (comma separated)</label>
+          <div className="space-y-3">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">{t.symptoms} Checklist</label>
+            <div className="flex flex-wrap gap-3">
+              {COMMON_SYMPTOMS.map(sym => (
+                <label key={sym} className="flex items-center space-x-2 bg-slate-800 px-3 py-2 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={selectedSymptoms.includes(sym)}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedSymptoms([...selectedSymptoms, sym]);
+                      else setSelectedSymptoms(selectedSymptoms.filter(s => s !== sym));
+                    }}
+                    className="w-4 h-4 rounded text-emerald-500 bg-slate-900 border-slate-700 focus:ring-emerald-500/50"
+                  />
+                  <span className="text-sm text-slate-300">{sym}</span>
+                </label>
+              ))}
+            </div>
             <input
               type="text"
-              value={formData.symptoms}
-              onChange={e => setFormData({ ...formData, symptoms: e.target.value })}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-              placeholder="e.g. Fever, Cough, Headache"
+              value={customSymptom}
+              onChange={e => setCustomSymptom(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all mt-2"
+              placeholder="Other symptoms (comma separated)"
             />
           </div>
 
+          {error && <p className="text-rose-500 text-sm font-bold flex items-center"><AlertCircle size={14} className="mr-2" /> {error}</p>}
+
           <button
             type="submit"
-            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center"
+            disabled={loading}
+            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center"
           >
-            {success ? <CheckCircle2 className="mr-2" /> : null}
-            {success ? 'Registered Successfully' : t.register}
+            {loading ? 'Registering...' : (success ? <CheckCircle2 className="mr-2" /> : null)}
+            {loading ? '' : (success ? 'Registered Successfully' : t.register)}
           </button>
         </form>
       </div>
@@ -255,37 +294,35 @@ export const VitalSignsEntry: React.FC = () => {
         <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8 shadow-xl">
           <h4 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-6">{t.triageResult}</h4>
           <div className="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-dashed border-slate-800">
-            <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 shadow-2xl ${
-              previewTriage === TriageLevel.CRITICAL ? 'bg-rose-500 shadow-rose-500/20' :
+            <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 shadow-2xl ${previewTriage === TriageLevel.CRITICAL ? 'bg-rose-500 shadow-rose-500/20' :
               previewTriage === TriageLevel.URGENT ? 'bg-amber-500 shadow-amber-500/20' :
-              'bg-emerald-500 shadow-emerald-500/20'
-            }`}>
+                'bg-emerald-500 shadow-emerald-500/20'
+              }`}>
               <AlertCircle size={48} className="text-white" />
             </div>
-            <p className={`text-2xl font-black uppercase tracking-tighter ${
-              previewTriage === TriageLevel.CRITICAL ? 'text-rose-500' :
+            <p className={`text-2xl font-black uppercase tracking-tighter ${previewTriage === TriageLevel.CRITICAL ? 'text-rose-500' :
               previewTriage === TriageLevel.URGENT ? 'text-amber-500' :
-              'text-emerald-500'
-            }`}>
+                'text-emerald-500'
+              }`}>
               {previewTriage === TriageLevel.CRITICAL ? t.critical :
-               previewTriage === TriageLevel.URGENT ? t.urgent :
-               t.nonUrgent}
+                previewTriage === TriageLevel.URGENT ? t.urgent :
+                  t.nonUrgent}
             </p>
           </div>
-          
+
           <div className="mt-6 space-y-3">
-             <div className="flex items-center text-xs text-slate-400">
-               <div className="w-2 h-2 rounded-full bg-rose-500 mr-2"></div>
-               <span>Critical: Immediate attention required</span>
-             </div>
-             <div className="flex items-center text-xs text-slate-400">
-               <div className="w-2 h-2 rounded-full bg-amber-500 mr-2"></div>
-               <span>Urgent: High priority, see within 30 mins</span>
-             </div>
-             <div className="flex items-center text-xs text-slate-400">
-               <div className="w-2 h-2 rounded-full bg-emerald-500 mr-2"></div>
-               <span>Non-urgent: Standard priority</span>
-             </div>
+            <div className="flex items-center text-xs text-slate-400">
+              <div className="w-2 h-2 rounded-full bg-rose-500 mr-2"></div>
+              <span>Critical: Immediate attention required</span>
+            </div>
+            <div className="flex items-center text-xs text-slate-400">
+              <div className="w-2 h-2 rounded-full bg-amber-500 mr-2"></div>
+              <span>Urgent: High priority, see within 30 mins</span>
+            </div>
+            <div className="flex items-center text-xs text-slate-400">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 mr-2"></div>
+              <span>Non-urgent: Standard priority</span>
+            </div>
           </div>
         </div>
       </div>

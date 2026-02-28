@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
 import { useHospital } from '../HospitalContext';
 import { Patient, TriageLevel, TRANSLATIONS } from '../types';
-import { ClipboardList, User, Activity, FileText, ChevronRight, AlertTriangle } from 'lucide-react';
+import { ClipboardList, User, Activity, FileText, ChevronRight, AlertTriangle, ChartLine, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend
+} from 'chart.js';
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
 const TriageBadge: React.FC<{ level: TriageLevel }> = ({ level }) => {
   const colors = {
@@ -84,7 +90,7 @@ export const PriorityQueue: React.FC<{ onSelectPatient: (p: Patient) => void }> 
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <button 
+                  <button
                     onClick={() => onSelectPatient(p)}
                     className="p-2 bg-slate-800 hover:bg-emerald-600 text-slate-400 hover:text-white rounded-lg transition-all"
                   >
@@ -106,16 +112,53 @@ export const PriorityQueue: React.FC<{ onSelectPatient: (p: Patient) => void }> 
 };
 
 export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void }> = ({ patient, onClose }) => {
-  const { addConsultationNotes, admitPatient, wards, language } = useHospital();
+  const { addConsultationNotes, admitPatient, dischargePatient, updateTreatment, wards, language } = useHospital();
   const t = TRANSLATIONS[language];
   const [notes, setNotes] = useState(patient.consultationNotes || '');
   const [selectedWard, setSelectedWard] = useState('');
 
+  const [activeTab, setActiveTab] = useState<'vitals' | 'treatment' | 'discharge'>('vitals');
+
+  // Treatment Form
+  const [medName, setMedName] = useState('');
+  const [medDosage, setMedDosage] = useState('');
+  const [medFreq, setMedFreq] = useState('');
+  const [treatmentPlan, setTreatmentPlan] = useState(patient.treatmentPlan || { medications: [], procedures: [], instructions: '' });
+
+  // Discharge Form
+  const [dischargeSummary, setDischargeSummary] = useState(patient.dischargeSummary || { diagnosis: '', followUpDate: '', prescriptions: [], advice: '' });
+
   const isRedFlag = patient.vitals && (patient.vitals.spo2 < 90 || patient.vitals.bpSystolic < 90);
+
+  const handleAddMedication = () => {
+    const meds = [...treatmentPlan.medications, { name: medName, dosage: medDosage, frequency: medFreq }];
+    const newPlan = { ...treatmentPlan, medications: meds };
+    setTreatmentPlan(newPlan);
+    updateTreatment(patient.id, newPlan);
+    setMedName(''); setMedDosage(''); setMedFreq('');
+  };
+
+  const chartData = {
+    labels: patient.vitalsHistory?.map(h => new Date(h.timestamp).toLocaleTimeString()) || [],
+    datasets: [
+      {
+        label: 'SpO2 (%)',
+        data: patient.vitalsHistory?.map(h => h.spo2) || [],
+        borderColor: 'rgb(16, 185, 129)',
+        backgroundColor: 'rgba(16, 185, 129, 0.5)',
+      },
+      {
+        label: 'Pulse (bpm)',
+        data: patient.vitalsHistory?.map(h => h.pulse) || [],
+        borderColor: 'rgb(245, 158, 11)',
+        backgroundColor: 'rgba(245, 158, 11, 0.5)',
+      }
+    ],
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <motion.div 
+      <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         className="bg-slate-900 w-full max-w-4xl max-h-[90vh] rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col"
@@ -151,53 +194,170 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
               </div>
             )}
 
-            {/* Vitals Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {[
-                { label: t.temp, value: `${patient.vitals?.temperature}°C`, icon: <Activity size={16} /> },
-                { label: t.pulse, value: `${patient.vitals?.pulse} bpm`, icon: <Activity size={16} /> },
-                { label: t.spo2, value: `${patient.vitals?.spo2}%`, icon: <Activity size={16} /> },
-                { label: 'BP', value: `${patient.vitals?.bpSystolic}/${patient.vitals?.bpDiastolic}`, icon: <Activity size={16} /> },
-                { label: t.rr, value: `${patient.vitals?.respiratoryRate}`, icon: <Activity size={16} /> },
-                { label: 'Gender', value: patient.gender, icon: <User size={16} /> },
-              ].map((stat, i) => (
-                <div key={i} className="bg-slate-800/50 p-4 rounded-2xl border border-slate-800">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">{stat.label}</p>
-                  <p className="text-lg font-bold text-white">{stat.value}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Symptoms */}
-            <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-800">
-              <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4 flex items-center">
-                <FileText size={14} className="mr-2" /> {t.symptoms}
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {patient.symptoms.map((s, i) => (
-                  <span key={i} className="px-3 py-1 bg-slate-900 text-slate-300 rounded-lg text-sm font-medium border border-slate-700">{s}</span>
-                ))}
-              </div>
-            </div>
-
-            {/* Consultation Notes */}
-            <div className="space-y-4">
-              <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center">
-                <ClipboardList size={14} className="mr-2" /> {t.notes}
-              </h4>
-              <textarea
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all h-40"
-                placeholder="Enter clinical findings and treatment plan..."
-              />
-              <button 
-                onClick={() => addConsultationNotes(patient.id, notes)}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-8 py-3 rounded-xl transition-all"
+            {/* Tabs */}
+            <div className="flex space-x-4 border-b border-slate-800 pb-2">
+              <button
+                onClick={() => setActiveTab('vitals')}
+                className={`text-sm font-bold uppercase tracking-widest px-4 py-2 ${activeTab === 'vitals' ? 'text-emerald-500 border-b-2 border-emerald-500' : 'text-slate-500 hover:text-slate-300'}`}
               >
-                {t.save} Notes
+                Vitals & Notes
+              </button>
+              <button
+                onClick={() => setActiveTab('treatment')}
+                className={`text-sm font-bold uppercase tracking-widest px-4 py-2 ${activeTab === 'treatment' ? 'text-emerald-500 border-b-2 border-emerald-500' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                Treatment Plan
+              </button>
+              <button
+                onClick={() => setActiveTab('discharge')}
+                className={`text-sm font-bold uppercase tracking-widest px-4 py-2 ${activeTab === 'discharge' ? 'text-emerald-500 border-b-2 border-emerald-500' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                Discharge
               </button>
             </div>
+
+            {activeTab === 'vitals' && (
+              <div className="space-y-8 animate-in fade-in zoom-in-95 duration-200">
+                {/* Vitals Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {[
+                    { label: t.temp, value: `${patient.vitals?.temperature}°C`, icon: <Activity size={16} /> },
+                    { label: t.pulse, value: `${patient.vitals?.pulse} bpm`, icon: <Activity size={16} /> },
+                    { label: t.spo2, value: `${patient.vitals?.spo2}%`, icon: <Activity size={16} /> },
+                    { label: 'BP', value: `${patient.vitals?.bpSystolic}/${patient.vitals?.bpDiastolic}`, icon: <Activity size={16} /> },
+                    { label: t.rr, value: `${patient.vitals?.respiratoryRate}`, icon: <Activity size={16} /> },
+                    { label: 'Gender', value: patient.gender, icon: <User size={16} /> },
+                  ].map((stat, i) => (
+                    <div key={i} className="bg-slate-800/50 p-4 rounded-2xl border border-slate-800">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">{stat.label}</p>
+                      <p className="text-lg font-bold text-white">{stat.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Historical Chart */}
+                {patient.vitalsHistory && patient.vitalsHistory.length > 1 && (
+                  <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-800">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4 flex items-center">
+                      <ChartLine size={14} className="mr-2" /> Vitals Trend
+                    </h4>
+                    <div className="h-48 w-full">
+                      <Line data={chartData} options={{ maintainAspectRatio: false, color: '#94a3b8' }} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Consultation Notes */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center">
+                    <ClipboardList size={14} className="mr-2" /> {t.notes}
+                  </h4>
+                  <textarea
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all h-32"
+                    placeholder="Enter clinical findings and treatment plan..."
+                  />
+                  <button
+                    onClick={() => addConsultationNotes(patient.id, notes)}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-8 py-3 rounded-xl transition-all"
+                  >
+                    {t.save} Notes
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'treatment' && (
+              <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-800">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4 flex items-center">
+                    <Activity size={14} className="mr-2" /> Prescribe Medication
+                  </h4>
+                  <div className="flex gap-2 mb-4">
+                    <input type="text" placeholder="Name" value={medName} onChange={e => setMedName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                    <input type="text" placeholder="Dosage" value={medDosage} onChange={e => setMedDosage(e.target.value)} className="w-24 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                    <input type="text" placeholder="Freq" value={medFreq} onChange={e => setMedFreq(e.target.value)} className="w-24 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                    <button onClick={handleAddMedication} disabled={!medName} className="p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg disabled:opacity-50"><Plus size={20} /></button>
+                  </div>
+                  <div className="space-y-2">
+                    {treatmentPlan.medications.map((m, i) => (
+                      <div key={i} className="flex justify-between items-center bg-slate-900 px-4 py-3 rounded-lg border border-slate-700">
+                        <span className="font-bold text-emerald-400 text-sm">{m.name}</span>
+                        <div className="text-xs text-slate-400">
+                          <span className="bg-slate-800 px-2 py-1 rounded mr-2">{m.dosage}</span>
+                          <span className="bg-slate-800 px-2 py-1 rounded">{m.frequency}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {treatmentPlan.medications.length === 0 && <p className="text-xs text-slate-500 italic">No medications prescribed.</p>}
+                  </div>
+                </div>
+
+                <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-800">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4 flex items-center">
+                    <FileText size={14} className="mr-2" /> Treatment Instructions
+                  </h4>
+                  <textarea
+                    value={treatmentPlan.instructions}
+                    onChange={e => {
+                      const newPlan = { ...treatmentPlan, instructions: e.target.value };
+                      setTreatmentPlan(newPlan);
+                    }}
+                    onBlur={() => updateTreatment(patient.id, treatmentPlan)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all h-24"
+                    placeholder="General instructions or procedures..."
+                  />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'discharge' && (
+              <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-800">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-6 flex items-center">
+                    <FileText size={14} className="mr-2" /> Final Discharge Summary
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Final Diagnosis</label>
+                      <input
+                        type="text"
+                        value={dischargeSummary.diagnosis}
+                        onChange={e => setDischargeSummary({ ...dischargeSummary, diagnosis: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Post-Discharge Advice</label>
+                      <textarea
+                        value={dischargeSummary.advice}
+                        onChange={e => setDischargeSummary({ ...dischargeSummary, advice: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white h-24"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Follow-Up Date</label>
+                      <input
+                        type="date"
+                        value={dischargeSummary.followUpDate}
+                        onChange={e => setDischargeSummary({ ...dischargeSummary, followUpDate: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white"
+                      />
+                    </div>
+                    <button
+                      onClick={() => {
+                        dischargePatient(patient.id, dischargeSummary);
+                        onClose();
+                      }}
+                      className="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-4 rounded-xl shadow-lg mt-4 transition-all"
+                    >
+                      Confirm Discharge
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-8">
@@ -217,7 +377,7 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
                     </option>
                   ))}
                 </select>
-                <button 
+                <button
                   disabled={!selectedWard}
                   onClick={() => {
                     admitPatient(patient.id, selectedWard, 'B' + Math.floor(Math.random() * 20));
@@ -227,6 +387,7 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
                 >
                   Admit to Ward
                 </button>
+                {/* Discharge button moved to Discharge tab */}
               </div>
             </div>
 

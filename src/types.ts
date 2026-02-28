@@ -42,6 +42,19 @@ export interface Patient {
   wardId?: string;
   bedNumber?: string;
   status: 'TRIAGE' | 'QUEUE' | 'ADMITTED' | 'DISCHARGED';
+  vitalsHistory?: Array<Vitals & { timestamp: string }>;
+  treatmentPlan?: {
+    medications: Array<{ name: string; dosage: string; frequency: string }>;
+    procedures: string[];
+    instructions: string;
+  };
+  dischargeSummary?: {
+    diagnosis: string;
+    followUpDate: string;
+    prescriptions: string[];
+    advice: string;
+    dischargedAt: string;
+  };
 }
 
 export interface Ward {

@@ -1,14 +1,14 @@
 import React from 'react';
 import { useHospital } from '../HospitalContext';
 import { UserRole, TRANSLATIONS } from '../types';
-import { 
-  LayoutDashboard, 
-  UserPlus, 
-  Stethoscope, 
-  Activity, 
-  ClipboardList, 
-  Settings, 
-  LogOut, 
+import {
+  LayoutDashboard,
+  UserPlus,
+  Stethoscope,
+  Activity,
+  ClipboardList,
+  Settings,
+  LogOut,
   Globe,
   Bell,
   Menu,
@@ -18,29 +18,28 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const SidebarItem: React.FC<{ 
-  icon: React.ReactNode; 
-  label: string; 
-  active?: boolean; 
-  onClick: () => void 
+const SidebarItem: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+  onClick: () => void
 }> = ({ icon, label, active, onClick }) => (
   <button
     onClick={onClick}
-    className={`flex items-center w-full px-4 py-3 mb-1 transition-colors rounded-lg ${
-      active 
-        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' 
-        : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-    }`}
+    className={`flex items-center w-full px-4 py-3 mb-1 transition-colors rounded-lg ${active
+      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20'
+      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+      }`}
   >
     <span className="mr-3">{icon}</span>
     <span className="text-sm font-medium">{label}</span>
   </button>
 );
 
-export const Layout: React.FC<{ 
-  children: React.ReactNode; 
-  activeTab: string; 
-  setActiveTab: (tab: string) => void 
+export const Layout: React.FC<{
+  children: React.ReactNode;
+  activeTab: string;
+  setActiveTab: (tab: string) => void
 }> = ({ children, activeTab, setActiveTab }) => {
   const { currentUser, language, setLanguage, setCurrentUser, patients } = useHospital();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
@@ -53,9 +52,10 @@ export const Layout: React.FC<{
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} />, roles: [UserRole.NURSE, UserRole.DOCTOR, UserRole.ADMIN] },
     { id: 'registration', label: t.patientRegistration, icon: <UserPlus size={20} />, roles: [UserRole.NURSE, UserRole.ADMIN] },
-    { id: 'vitals', label: t.vitalSigns, icon: <Activity size={20} />, roles: [UserRole.NURSE] },
-    { id: 'queue', label: t.priorityQueue, icon: <ClipboardList size={20} />, roles: [UserRole.DOCTOR, UserRole.NURSE] },
+    { id: 'vitals', label: t.vitalSigns, icon: <Activity size={20} />, roles: [UserRole.NURSE, UserRole.ADMIN] },
+    { id: 'queue', label: t.priorityQueue, icon: <ClipboardList size={20} />, roles: [UserRole.DOCTOR, UserRole.NURSE, UserRole.ADMIN] },
     { id: 'wards', label: t.wardManagement, icon: <Stethoscope size={20} />, roles: [UserRole.ADMIN, UserRole.DOCTOR] },
+    { id: 'users', label: 'User Directory', icon: <UserPlus size={20} />, roles: [UserRole.ADMIN] },
     { id: 'audit', label: t.auditTrail, icon: <ShieldCheck size={20} />, roles: [UserRole.ADMIN, UserRole.IT_SUPPORT] },
     { id: 'settings', label: 'Settings', icon: <Settings size={20} />, roles: [UserRole.ADMIN, UserRole.IT_SUPPORT] },
   ];
@@ -102,7 +102,7 @@ export const Layout: React.FC<{
               <p className="text-xs text-slate-500 uppercase tracking-wider">{currentUser?.role}</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={() => setCurrentUser(null)}
             className="flex items-center w-full px-4 py-2 text-sm font-medium text-slate-400 hover:text-rose-400 transition-colors"
           >
@@ -117,7 +117,7 @@ export const Layout: React.FC<{
         {/* Topbar */}
         <header className="h-16 bg-slate-900/50 backdrop-blur-md border-bottom border-slate-800 flex items-center justify-between px-8 z-10">
           <div className="flex items-center">
-            <button 
+            <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="p-2 mr-4 text-slate-400 hover:text-white transition-colors"
             >
@@ -145,7 +145,7 @@ export const Layout: React.FC<{
             </div>
 
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                 className={`p-2 transition-colors relative rounded-lg ${isNotificationsOpen ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`}
               >
@@ -192,7 +192,7 @@ export const Layout: React.FC<{
                       )}
                     </div>
                     {criticalPatients.length > 0 && (
-                      <button 
+                      <button
                         onClick={() => { setIsNotificationsOpen(false); setActiveTab('queue'); }}
                         className="w-full p-3 text-[10px] font-black uppercase tracking-widest text-emerald-500 hover:bg-emerald-500/5 transition-colors border-t border-slate-800"
                       >

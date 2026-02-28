@@ -1,80 +1,121 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Patient, Ward, UserRole, AuditLog, TriageLevel } from './types';
-import { MOCK_PATIENTS, MOCK_WARDS, MOCK_AUDIT_LOGS } from './mockData';
+import { apiService } from './apiService';
 
 interface HospitalContextType {
   patients: Patient[];
   wards: Ward[];
   auditLogs: AuditLog[];
-  currentUser: { id: string; name: string; role: UserRole } | null;
+  currentUser: { id: string; name: string; role: UserRole; isFirstLogin?: boolean } | null;
   language: 'en' | 'si';
   setLanguage: (lang: 'en' | 'si') => void;
-  setCurrentUser: (user: { id: string; name: string; role: UserRole } | null) => void;
-  registerPatient: (patient: Omit<Patient, 'id' | 'registrationDate' | 'status'>) => void;
-  updateVitals: (patientId: string, vitals: Patient['vitals'], triageLevel: TriageLevel) => void;
-  addConsultationNotes: (patientId: string, notes: string) => void;
-  admitPatient: (patientId: string, wardId: string, bedNumber: string) => void;
+  setCurrentUser: (user: { id: string; name: string; role: UserRole; isFirstLogin?: boolean } | null) => void;
+  login: (user: { id: string; name: string; role: UserRole; isFirstLogin?: boolean }) => Promise<void>;
+  logout: () => void;
+  registerPatient: (patient: Omit<Patient, 'id' | 'registrationDate' | 'status'>) => Promise<void>;
+  updateVitals: (patientId: string, vitals: Patient['vitals'], triageLevel: TriageLevel) => Promise<void>;
+  addConsultationNotes: (patientId: string, notes: string) => Promise<void>;
+  admitPatient: (patientId: string, wardId: string, bedNumber: string) => Promise<void>;
+  dischargePatient: (patientId: string, summary?: any) => Promise<void>;
+  updateTreatment: (patientId: string, plan: any) => Promise<void>;
+  refreshData: () => Promise<void>;
 }
 
 const HospitalContext = createContext<HospitalContextType | undefined>(undefined);
 
 export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [patients, setPatients] = useState<Patient[]>(MOCK_PATIENTS);
-  const [wards, setWards] = useState<Ward[]>(MOCK_WARDS);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(MOCK_AUDIT_LOGS);
-  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; role: UserRole } | null>({
-    id: 'N001',
-    name: 'Nurse Anula',
-    role: UserRole.NURSE
-  });
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [wards, setWards] = useState<Ward[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; role: UserRole; isFirstLogin?: boolean } | null>(null);
   const [language, setLanguage] = useState<'en' | 'si'>('en');
 
-  const addLog = (action: string, details: string) => {
+  const refreshData = async () => {
+    if (!localStorage.getItem('twpms_token')) return;
+    try {
+      const { patients, wards, auditLogs } = await apiService.fetchData();
+      setPatients(patients);
+      setWards(wards);
+      setAuditLogs(auditLogs);
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        logout();
+      }
+      console.error('Failed to fetch data', err);
+    }
+  };
+
+  useEffect(() => {
+    if (localStorage.getItem('twpms_token')) {
+      refreshData();
+    }
+
+    apiService.initSocket(
+      (updatedPatient: Patient) => {
+        setPatients(prev => prev.map(p => p.id === updatedPatient.id ? updatedPatient : p));
+      },
+      (updatedWard: Ward) => {
+        setWards(prev => prev.map(w => w.id === updatedWard.id ? updatedWard : w));
+      }
+    );
+
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const login = async (user: { id: string; name: string; role: UserRole; isFirstLogin?: boolean }) => {
+    setCurrentUser(user);
+    try {
+      await refreshData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem('twpms_token');
+    setCurrentUser(null);
+  };
+
+  const handleSetCurrentUser = (user: { id: string; name: string; role: UserRole; isFirstLogin?: boolean } | null) => {
+    setCurrentUser(user);
+  };
+
+  const registerPatient = async (patientData: Omit<Patient, 'id' | 'registrationDate' | 'status'>) => {
     if (!currentUser) return;
-    const newLog: AuditLog = {
-      id: `L${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      userId: currentUser.id,
-      userName: currentUser.name,
-      action,
-      details
-    };
-    setAuditLogs(prev => [newLog, ...prev]);
+    await apiService.registerPatient(patientData, currentUser.id, currentUser.name);
+    await refreshData();
   };
 
-  const registerPatient = (patientData: Omit<Patient, 'id' | 'registrationDate' | 'status'>) => {
-    const newPatient: Patient = {
-      ...patientData,
-      id: `P${patients.length + 1}`.padStart(4, '0'),
-      registrationDate: new Date().toISOString(),
-      status: 'TRIAGE'
-    };
-    setPatients(prev => [...prev, newPatient]);
-    addLog('PATIENT_REGISTRATION', `Registered patient ${newPatient.name} (${newPatient.id})`);
+  const updateVitals = async (patientId: string, vitals: Patient['vitals'], triageLevel: TriageLevel) => {
+    if (!currentUser) return;
+    await apiService.updateVitals(patientId, vitals as any, triageLevel, currentUser.id, currentUser.name);
+    await refreshData();
   };
 
-  const updateVitals = (patientId: string, vitals: Patient['vitals'], triageLevel: TriageLevel) => {
-    setPatients(prev => prev.map(p => 
-      p.id === patientId ? { ...p, vitals, triageLevel, status: 'QUEUE' } : p
-    ));
-    addLog('VITALS_CAPTURE', `Updated vitals for patient ${patientId} - ${triageLevel}`);
+  const addConsultationNotes = async (patientId: string, notes: string) => {
+    if (!currentUser) return;
+    await apiService.addConsultationNotes(patientId, notes, currentUser.id, currentUser.name);
+    await refreshData();
   };
 
-  const addConsultationNotes = (patientId: string, notes: string) => {
-    setPatients(prev => prev.map(p => 
-      p.id === patientId ? { ...p, consultationNotes: notes } : p
-    ));
-    addLog('CONSULTATION_NOTES', `Added consultation notes for patient ${patientId}`);
+  const admitPatient = async (patientId: string, wardId: string, bedNumber: string) => {
+    if (!currentUser) return;
+    await apiService.admitPatient(patientId, wardId, bedNumber, currentUser.id, currentUser.name);
+    await refreshData();
   };
 
-  const admitPatient = (patientId: string, wardId: string, bedNumber: string) => {
-    setPatients(prev => prev.map(p => 
-      p.id === patientId ? { ...p, wardId, bedNumber, status: 'ADMITTED' } : p
-    ));
-    setWards(prev => prev.map(w => 
-      w.id === wardId ? { ...w, occupied: w.occupied + 1 } : w
-    ));
-    addLog('WARD_ADMISSION', `Admitted patient ${patientId} to ward ${wardId}, bed ${bedNumber}`);
+  const dischargePatient = async (patientId: string, summary?: any) => {
+    if (!currentUser) return;
+    await apiService.dischargePatient(patientId, summary || {}, currentUser.id, currentUser.name);
+    await refreshData();
+  };
+
+  const updateTreatment = async (patientId: string, plan: any) => {
+    if (!currentUser) return;
+    await apiService.updateTreatment(patientId, plan, currentUser.id, currentUser.name);
+    await refreshData();
   };
 
   return (
@@ -85,11 +126,16 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       currentUser,
       language,
       setLanguage,
-      setCurrentUser,
+      setCurrentUser: handleSetCurrentUser,
+      login,
+      logout,
       registerPatient,
       updateVitals,
       addConsultationNotes,
-      admitPatient
+      admitPatient,
+      dischargePatient,
+      updateTreatment,
+      refreshData
     }}>
       {children}
     </HospitalContext.Provider>
