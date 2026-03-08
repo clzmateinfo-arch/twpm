@@ -84,5 +84,9 @@ export const apiService = {
     await axios.put(`${API_URL}/patients/${patientId}/treatment`, { treatmentPlan }, {
       headers: { 'x-user-id': userId, 'x-user-name': userName }
     });
+  },
+
+  updateLanguage: async (language: 'en' | 'si'): Promise<void> => {
+    await axios.post(`${API_URL}/auth/language`, { language });
   }
 };

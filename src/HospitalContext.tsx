@@ -6,11 +6,11 @@ interface HospitalContextType {
   patients: Patient[];
   wards: Ward[];
   auditLogs: AuditLog[];
-  currentUser: { id: string; name: string; role: UserRole; isFirstLogin?: boolean } | null;
+  currentUser: { id: string; name: string; role: UserRole; isFirstLogin?: boolean; language?: 'en' | 'si' } | null;
   language: 'en' | 'si';
   setLanguage: (lang: 'en' | 'si') => void;
-  setCurrentUser: (user: { id: string; name: string; role: UserRole; isFirstLogin?: boolean } | null) => void;
-  login: (user: { id: string; name: string; role: UserRole; isFirstLogin?: boolean }) => Promise<void>;
+  setCurrentUser: (user: { id: string; name: string; role: UserRole; isFirstLogin?: boolean; language?: 'en' | 'si' } | null) => void;
+  login: (user: { id: string; name: string; role: UserRole; isFirstLogin?: boolean; language?: 'en' | 'si' }) => Promise<void>;
   logout: () => void;
   registerPatient: (patient: Omit<Patient, 'id' | 'registrationDate' | 'status'>) => Promise<void>;
   updateVitals: (patientId: string, vitals: Patient['vitals'], triageLevel: TriageLevel) => Promise<void>;
@@ -27,8 +27,8 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [patients, setPatients] = useState<Patient[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; role: UserRole; isFirstLogin?: boolean } | null>(null);
-  const [language, setLanguage] = useState<'en' | 'si'>('en');
+  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; role: UserRole; isFirstLogin?: boolean; language?: 'en' | 'si' } | null>(null);
+  const [language, setLanguage] = useState<'en' | 'si'>((localStorage.getItem('twpms_lang') as 'en' | 'si') || 'en');
 
   const refreshData = async () => {
     if (!localStorage.getItem('twpms_token')) return;
@@ -64,8 +64,24 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, []);
 
-  const login = async (user: { id: string; name: string; role: UserRole; isFirstLogin?: boolean }) => {
-    setCurrentUser(user);
+  const handleSetLanguage = async (lang: 'en' | 'si') => {
+    setLanguage(lang);
+    localStorage.setItem('twpms_lang', lang);
+    if (currentUser) {
+      try {
+        await apiService.updateLanguage(lang);
+      } catch (err) {
+        console.error('Failed to update language preference', err);
+      }
+    }
+  };
+
+  const login = async (user: { id: string; name: string; role: UserRole; isFirstLogin?: boolean; language?: 'en' | 'si' }) => {
+    setCurrentUser(user as any);
+    if (user.language) {
+      setLanguage(user.language);
+      localStorage.setItem('twpms_lang', user.language);
+    }
     try {
       await refreshData();
     } catch (err) {
@@ -78,8 +94,9 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCurrentUser(null);
   };
 
-  const handleSetCurrentUser = (user: { id: string; name: string; role: UserRole; isFirstLogin?: boolean } | null) => {
+  const handleSetCurrentUser = (user: { id: string; name: string; role: UserRole; isFirstLogin?: boolean; language?: 'en' | 'si' } | null) => {
     setCurrentUser(user);
+    if (user?.language) setLanguage(user.language);
   };
 
   const registerPatient = async (patientData: Omit<Patient, 'id' | 'registrationDate' | 'status'>) => {
@@ -125,7 +142,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       auditLogs,
       currentUser,
       language,
-      setLanguage,
+      setLanguage: handleSetLanguage,
       setCurrentUser: handleSetCurrentUser,
       login,
       logout,
