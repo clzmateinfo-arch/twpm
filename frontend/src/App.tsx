@@ -5,6 +5,7 @@ import { Dashboard } from './components/Dashboard';
 import { PatientRegistration, VitalSignsEntry } from './components/NursePortal';
 import { PriorityQueue, PatientDetailView } from './components/DoctorPortal';
 import { WardManagement, AuditTrail, UserManagement } from './components/AdminPortal';
+import { PharmacyPortal } from './components/PharmacyPortal';
 import { LoginScreen, PasswordResetScreen, UserSettings } from './components/AuthScreens';
 import { Patient } from './types';
 
@@ -28,6 +29,7 @@ const AppContent: React.FC = () => {
       {activeTab === 'vitals' && <VitalSignsEntry />}
       {activeTab === 'queue' && <PriorityQueue onSelectPatient={setSelectedPatient} />}
       {activeTab === 'wards' && <WardManagement />}
+      {activeTab === 'pharmacy' && <PharmacyPortal />}
       {activeTab === 'audit' && <AuditTrail />}
       {activeTab === 'users' && <UserManagement />}
       {activeTab === 'settings' && <UserSettings />}

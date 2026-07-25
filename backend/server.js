@@ -24,8 +24,11 @@ app.use((req, res, next) => {
     next();
 });
 
+const pharmacyRouter = require('./routes/pharmacy');
+
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/pharmacy', pharmacyRouter);
 
 const PORT = process.env.PORT || 5000;
 
@@ -64,6 +67,16 @@ const startServer = async () => {
         }
 
         app.use('/api', require('./routes'));
+
+        // First minimal periodic-job infra in this codebase: expiry alerts can't
+        // rely purely on request-triggered checks (a drug could sit unfetched for
+        // days), but a 6-hourly unthrottled loop would spam alerts, hence the
+        // once-per-day dedup inside runExpiryCheck itself (see routes/pharmacy.js).
+        pharmacyRouter.runExpiryCheck(io).catch(err => console.error('Initial expiry check failed', err));
+        setInterval(() => {
+            pharmacyRouter.runExpiryCheck(io).catch(err => console.error('Periodic expiry check failed', err));
+        }, 6 * 60 * 60 * 1000);
+
         server.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);
         });

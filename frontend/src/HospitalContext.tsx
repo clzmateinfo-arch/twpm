@@ -1,11 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Patient, Ward, UserRole, AuditLog, TriageLevel } from './types';
+import { Patient, Ward, UserRole, AuditLog, TriageLevel, Drug } from './types';
 import { apiService } from './apiService';
+
+const DRUG_CATALOG_ROLES = [UserRole.DOCTOR, UserRole.PHARMACIST, UserRole.ADMIN];
 
 interface HospitalContextType {
   patients: Patient[];
   wards: Ward[];
   auditLogs: AuditLog[];
+  drugs: Drug[];
   currentUser: { id: string; name: string; role: UserRole; isFirstLogin?: boolean; language?: 'en' | 'si' } | null;
   language: 'en' | 'si';
   setLanguage: (lang: 'en' | 'si') => void;
@@ -19,6 +22,11 @@ interface HospitalContextType {
   dischargePatient: (patientId: string, summary?: any) => Promise<void>;
   updateTreatment: (patientId: string, plan: any) => Promise<void>;
   refreshData: () => Promise<void>;
+  refreshDrugs: (roleOverride?: UserRole) => Promise<void>;
+  createDrug: (drug: Omit<Drug, 'id' | 'active'>) => Promise<void>;
+  updateDrug: (id: string, updates: Partial<Omit<Drug, 'id'>>) => Promise<void>;
+  deactivateDrug: (id: string) => Promise<void>;
+  dispenseMedication: (patientId: string, medicationId: string, drugId: string, quantity: number) => Promise<void>;
 }
 
 const HospitalContext = createContext<HospitalContextType | undefined>(undefined);
@@ -27,6 +35,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [patients, setPatients] = useState<Patient[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [drugs, setDrugs] = useState<Drug[]>([]);
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; role: UserRole; isFirstLogin?: boolean; language?: 'en' | 'si' } | null>(null);
   const [language, setLanguage] = useState<'en' | 'si'>((localStorage.getItem('twpms_lang') as 'en' | 'si') || 'en');
 
@@ -45,9 +54,30 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  // Drug catalog is fetched separately from /api/data (not folded into it),
+  // since NURSE must never receive inventory data and /api/data is
+  // role-agnostic. Backend also enforces this at the route level (403 for
+  // NURSE) - this client-side role check just avoids a pointless failing
+  // request for a role we already know can't see it.
+  const refreshDrugs = async (roleOverride?: UserRole) => {
+    if (!localStorage.getItem('twpms_token')) return;
+    const effectiveRole = roleOverride || currentUser?.role;
+    if (!effectiveRole || !DRUG_CATALOG_ROLES.includes(effectiveRole)) return;
+    try {
+      const data = await apiService.fetchDrugs();
+      setDrugs(data);
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        logout();
+      }
+      console.error('Failed to fetch drugs', err);
+    }
+  };
+
   useEffect(() => {
     if (localStorage.getItem('twpms_token')) {
       refreshData();
+      refreshDrugs();
     }
 
     apiService.initSocket(
@@ -56,6 +86,15 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       },
       (updatedWard: Ward) => {
         setWards(prev => prev.map(w => w.id === updatedWard.id ? updatedWard : w));
+      },
+      (updatedDrug: Drug) => {
+        setDrugs(prev => {
+          const idx = prev.findIndex(d => d.id === updatedDrug.id);
+          if (idx === -1) return [...prev, updatedDrug];
+          const next = [...prev];
+          next[idx] = updatedDrug;
+          return next;
+        });
       }
     );
 
@@ -84,6 +123,9 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
     try {
       await refreshData();
+      // currentUser state hasn't committed yet in this closure, so the
+      // role is passed explicitly rather than read from context state.
+      await refreshDrugs(user.role);
     } catch (err) {
       console.error(err);
     }
@@ -135,11 +177,33 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     await refreshData();
   };
 
+  const createDrug = async (drug: Omit<Drug, 'id' | 'active'>) => {
+    await apiService.createDrug(drug);
+    await refreshDrugs();
+  };
+
+  const updateDrug = async (id: string, updates: Partial<Omit<Drug, 'id'>>) => {
+    await apiService.updateDrug(id, updates);
+    await refreshDrugs();
+  };
+
+  const deactivateDrug = async (id: string) => {
+    await apiService.deactivateDrug(id);
+    await refreshDrugs();
+  };
+
+  const dispenseMedication = async (patientId: string, medicationId: string, drugId: string, quantity: number) => {
+    await apiService.dispenseMedication(patientId, medicationId, drugId, quantity);
+    await refreshDrugs();
+    await refreshData();
+  };
+
   return (
     <HospitalContext.Provider value={{
       patients,
       wards,
       auditLogs,
+      drugs,
       currentUser,
       language,
       setLanguage: handleSetLanguage,
@@ -152,6 +216,11 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       admitPatient,
       dischargePatient,
       updateTreatment,
+      refreshDrugs,
+      createDrug,
+      updateDrug,
+      deactivateDrug,
+      dispenseMedication,
       refreshData
     }}>
       {children}

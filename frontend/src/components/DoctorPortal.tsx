@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useHospital } from '../HospitalContext';
-import { Patient, TriageLevel, TRANSLATIONS } from '../types';
+import { Patient, TriageLevel, TRANSLATIONS, isFractionalDrugUnit } from '../types';
 import { ClipboardList, User, Activity, FileText, ChevronRight, AlertTriangle, ChartLine, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Line } from 'react-chartjs-2';
@@ -112,7 +112,7 @@ export const PriorityQueue: React.FC<{ onSelectPatient: (p: Patient) => void }> 
 };
 
 export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void }> = ({ patient, onClose }) => {
-  const { addConsultationNotes, admitPatient, dischargePatient, updateTreatment, wards, language } = useHospital();
+  const { addConsultationNotes, admitPatient, dischargePatient, updateTreatment, wards, drugs, language } = useHospital();
   const t = TRANSLATIONS[language];
   const [notes, setNotes] = useState(patient.consultationNotes || '');
   const [selectedWard, setSelectedWard] = useState('');
@@ -120,22 +120,71 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
   const [activeTab, setActiveTab] = useState<'vitals' | 'treatment' | 'discharge'>('vitals');
 
   // Treatment Form
+  const [selectedDrugId, setSelectedDrugId] = useState(''); // '' = custom/not-in-catalog
   const [medName, setMedName] = useState('');
   const [medDosage, setMedDosage] = useState('');
   const [medFreq, setMedFreq] = useState('');
+  const [medQuantity, setMedQuantity] = useState('');
+  const [medError, setMedError] = useState('');
   const [treatmentPlan, setTreatmentPlan] = useState(patient.treatmentPlan || { medications: [], procedures: [], instructions: '' });
 
   // Discharge Form
   const [dischargeSummary, setDischargeSummary] = useState(patient.dischargeSummary || { diagnosis: '', followUpDate: '', prescriptions: [], advice: '' });
 
   const isRedFlag = patient.vitals && (patient.vitals.spo2 < 90 || patient.vitals.bpSystolic < 90);
+  const activeDrugs = drugs.filter(d => d.active);
+  const selectedDrug = activeDrugs.find(d => d.id === selectedDrugId);
 
   const handleAddMedication = () => {
-    const meds = [...treatmentPlan.medications, { name: medName, dosage: medDosage, frequency: medFreq }];
+    setMedError('');
+
+    let newMed: any;
+    if (selectedDrugId) {
+      if (!selectedDrug) {
+        setMedError('Selected drug is no longer available');
+        return;
+      }
+      const qty = Number(medQuantity);
+      if (!Number.isFinite(qty) || qty <= 0) {
+        setMedError('Quantity prescribed must be a positive number');
+        return;
+      }
+      if (!isFractionalDrugUnit(selectedDrug.unit) && !Number.isInteger(qty)) {
+        setMedError(`Quantity must be a whole number for unit '${selectedDrug.unit}'`);
+        return;
+      }
+      newMed = {
+        name: selectedDrug.name,
+        dosage: medDosage,
+        frequency: medFreq,
+        drugId: selectedDrug.id,
+        quantityPrescribed: qty,
+        dispensedQuantity: 0,
+        status: 'PENDING'
+      };
+    } else {
+      if (!medName.trim()) {
+        setMedError('Enter a medication name, or select one from the catalog');
+        return;
+      }
+      newMed = {
+        name: medName.trim(),
+        dosage: medDosage,
+        frequency: medFreq,
+        drugId: null,
+        quantityPrescribed: null,
+        dispensedQuantity: 0,
+        status: 'NOT_LINKED'
+      };
+    }
+
+    const meds = [...treatmentPlan.medications, newMed];
     const newPlan = { ...treatmentPlan, medications: meds };
     setTreatmentPlan(newPlan);
-    updateTreatment(patient.id, newPlan);
-    setMedName(''); setMedDosage(''); setMedFreq('');
+    updateTreatment(patient.id, newPlan).catch((err: any) => {
+      setMedError(err.response?.data?.error || 'Failed to save medication');
+    });
+    setSelectedDrugId(''); setMedName(''); setMedDosage(''); setMedFreq(''); setMedQuantity('');
   };
 
   const chartData = {
@@ -274,22 +323,60 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
                   <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4 flex items-center">
                     <Activity size={14} className="mr-2" /> {t.prescribeMed}
                   </h4>
-                  <div className="flex gap-2 mb-4">
-                    <input type="text" placeholder="Name" value={medName} onChange={e => setMedName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
-                    <input type="text" placeholder="Dosage" value={medDosage} onChange={e => setMedDosage(e.target.value)} className="w-24 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
-                    <input type="text" placeholder="Freq" value={medFreq} onChange={e => setMedFreq(e.target.value)} className="w-24 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
-                    <button onClick={handleAddMedication} disabled={!medName} className="p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg disabled:opacity-50"><Plus size={20} /></button>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex gap-2">
+                      <select value={selectedDrugId} onChange={e => setSelectedDrugId(e.target.value)}
+                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <option value="">{t.customNotInCatalog}</option>
+                        {activeDrugs.map(d => (
+                          <option key={d.id} value={d.id}>{d.name} {d.strength} ({d.form}) — {d.stock} {d.unit}(s) in stock</option>
+                        ))}
+                      </select>
+                      {!selectedDrugId && (
+                        <input type="text" placeholder="Name" value={medName} onChange={e => setMedName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <input type="text" placeholder="Dosage" value={medDosage} onChange={e => setMedDosage(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                      <input type="text" placeholder="Freq" value={medFreq} onChange={e => setMedFreq(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                      {selectedDrugId && (
+                        <input type="number" min={0} step="any" placeholder={t.quantityPrescribed} value={medQuantity} onChange={e => setMedQuantity(e.target.value)} className="w-32 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                      )}
+                      <button onClick={handleAddMedication} disabled={selectedDrugId ? !medQuantity : !medName} className="p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg disabled:opacity-50"><Plus size={20} /></button>
+                    </div>
+                    {medError && <p className="text-rose-500 text-xs font-bold flex items-center"><AlertTriangle size={12} className="mr-1" /> {medError}</p>}
                   </div>
                   <div className="space-y-2">
-                    {treatmentPlan.medications.map((m, i) => (
-                      <div key={i} className="flex justify-between items-center bg-slate-900 px-4 py-3 rounded-lg border border-slate-700">
-                        <span className="font-bold text-emerald-400 text-sm">{m.name}</span>
-                        <div className="text-xs text-slate-400">
-                          <span className="bg-slate-800 px-2 py-1 rounded mr-2">{m.dosage}</span>
-                          <span className="bg-slate-800 px-2 py-1 rounded">{m.frequency}</span>
+                    {treatmentPlan.medications.map((m: any, i) => {
+                      const statusStyles: Record<string, string> = {
+                        PENDING: 'bg-slate-700 text-slate-300',
+                        PARTIALLY_DISPENSED: 'bg-amber-500/20 text-amber-500',
+                        FULFILLED: 'bg-emerald-500/20 text-emerald-500',
+                        NOT_LINKED: 'bg-slate-800 text-slate-500'
+                      };
+                      const statusLabel: Record<string, string> = {
+                        PENDING: t.pending,
+                        PARTIALLY_DISPENSED: t.partiallyDispensed,
+                        FULFILLED: t.fulfilled,
+                        NOT_LINKED: t.notLinkedToInventory
+                      };
+                      const status = m.status || 'NOT_LINKED';
+                      return (
+                        <div key={m._id || i} className="flex flex-col bg-slate-900 px-4 py-3 rounded-lg border border-slate-700 gap-1">
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-emerald-400 text-sm">{m.name}</span>
+                            <div className="text-xs text-slate-400 flex items-center gap-2">
+                              <span className="bg-slate-800 px-2 py-1 rounded">{m.dosage}</span>
+                              <span className="bg-slate-800 px-2 py-1 rounded">{m.frequency}</span>
+                              <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest ${statusStyles[status]}`}>{statusLabel[status]}</span>
+                            </div>
+                          </div>
+                          {m.drugId && (
+                            <p className="text-[10px] text-slate-500">{t.quantityDispensed}: {m.dispensedQuantity} / {t.quantityPrescribed}: {m.quantityPrescribed}</p>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {treatmentPlan.medications.length === 0 && <p className="text-xs text-slate-500 italic">No medications prescribed.</p>}
                   </div>
                 </div>
