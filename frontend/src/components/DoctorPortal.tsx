@@ -133,13 +133,24 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
 
   const isRedFlag = patient.vitals && (patient.vitals.spo2 < 90 || patient.vitals.bpSystolic < 90);
   const activeDrugs = drugs.filter(d => d.active);
+  // selectedDrugId: '' = nothing chosen yet (invalid — Add is disabled),
+  // 'CUSTOM' = explicit free-text/not-in-catalog choice, anything else = a real Drug.id.
+  // '' must NOT silently behave like CUSTOM: leaving the dropdown untouched previously
+  // defaulted to a non-dispensable "custom" medication (drugId: null) with no warning,
+  // which is exactly what made prescribed medications invisible in the Pharmacy
+  // Dispense tab — a doctor typing into the always-visible free-text box (the most
+  // natural first action) never realized they'd skipped linking it to inventory.
   const selectedDrug = activeDrugs.find(d => d.id === selectedDrugId);
 
   const handleAddMedication = () => {
     setMedError('');
 
     let newMed: any;
-    if (selectedDrugId) {
+    if (!selectedDrugId) {
+      setMedError('Select a drug from the catalog, or choose "Custom / not in catalog"');
+      return;
+    }
+    if (selectedDrugId !== 'CUSTOM') {
       if (!selectedDrug) {
         setMedError('Selected drug is no longer available');
         return;
@@ -164,7 +175,7 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
       };
     } else {
       if (!medName.trim()) {
-        setMedError('Enter a medication name, or select one from the catalog');
+        setMedError('Enter a medication name');
         return;
       }
       newMed = {
@@ -327,22 +338,26 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
                     <div className="flex gap-2">
                       <select value={selectedDrugId} onChange={e => setSelectedDrugId(e.target.value)}
                         className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                        <option value="">{t.customNotInCatalog}</option>
+                        <option value="" disabled>-- {t.selectDrug} --</option>
                         {activeDrugs.map(d => (
                           <option key={d.id} value={d.id}>{d.name} {d.strength} ({d.form}) — {d.stock} {d.unit}(s) in stock</option>
                         ))}
+                        <option value="CUSTOM">{t.customNotInCatalog}</option>
                       </select>
-                      {!selectedDrugId && (
+                      {selectedDrugId === 'CUSTOM' && (
                         <input type="text" placeholder="Name" value={medName} onChange={e => setMedName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
                       )}
                     </div>
+                    {selectedDrugId === 'CUSTOM' && (
+                      <p className="text-amber-500 text-xs font-bold flex items-center"><AlertTriangle size={12} className="mr-1" /> {t.notLinkedToInventory} — this will not be dispensable through the Pharmacy Portal.</p>
+                    )}
                     <div className="flex gap-2">
                       <input type="text" placeholder="Dosage" value={medDosage} onChange={e => setMedDosage(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
                       <input type="text" placeholder="Freq" value={medFreq} onChange={e => setMedFreq(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
-                      {selectedDrugId && (
+                      {selectedDrugId && selectedDrugId !== 'CUSTOM' && (
                         <input type="number" min={0} step="any" placeholder={t.quantityPrescribed} value={medQuantity} onChange={e => setMedQuantity(e.target.value)} className="w-32 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
                       )}
-                      <button onClick={handleAddMedication} disabled={selectedDrugId ? !medQuantity : !medName} className="p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg disabled:opacity-50"><Plus size={20} /></button>
+                      <button onClick={handleAddMedication} disabled={!selectedDrugId || (selectedDrugId === 'CUSTOM' ? !medName : !medQuantity)} className="p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg disabled:opacity-50"><Plus size={20} /></button>
                     </div>
                     {medError && <p className="text-rose-500 text-xs font-bold flex items-center"><AlertTriangle size={12} className="mr-1" /> {medError}</p>}
                   </div>
