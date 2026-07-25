@@ -1,8 +1,41 @@
 export enum UserRole {
   NURSE = 'NURSE',
   DOCTOR = 'DOCTOR',
+  PHARMACIST = 'PHARMACIST',
   ADMIN = 'ADMIN',
   IT_SUPPORT = 'IT_SUPPORT'
+}
+
+export enum DrugForm {
+  TABLET = 'TABLET',
+  CAPSULE = 'CAPSULE',
+  SYRUP = 'SYRUP',
+  INJECTION = 'INJECTION',
+  OINTMENT = 'OINTMENT',
+  DROPS = 'DROPS',
+  INHALER = 'INHALER',
+  OTHER = 'OTHER'
+}
+
+export type DrugUnit = 'tablet' | 'capsule' | 'ml' | 'mg' | 'g' | 'vial' | 'dose';
+
+export const DRUG_UNITS: DrugUnit[] = ['tablet', 'capsule', 'ml', 'mg', 'g', 'vial', 'dose'];
+export const FRACTIONAL_DRUG_UNITS: DrugUnit[] = ['ml', 'mg', 'g'];
+export const isFractionalDrugUnit = (unit: DrugUnit): boolean => FRACTIONAL_DRUG_UNITS.includes(unit);
+export const DRUG_EXPIRY_WARNING_DAYS = 30;
+
+export interface Drug {
+  id: string;
+  name: string;
+  form: DrugForm;
+  strength: string;
+  unit: DrugUnit;
+  stock: number;
+  reorderThreshold: number;
+  expiryDate: string;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export enum TriageLevel {
@@ -44,7 +77,16 @@ export interface Patient {
   status: 'TRIAGE' | 'QUEUE' | 'ADMITTED' | 'DISCHARGED';
   vitalsHistory?: Array<Vitals & { timestamp: string }>;
   treatmentPlan?: {
-    medications: Array<{ name: string; dosage: string; frequency: string }>;
+    medications: Array<{
+      _id?: string;
+      drugId: string | null;
+      name: string;
+      dosage: string;
+      frequency: string;
+      quantityPrescribed: number | null;
+      dispensedQuantity: number;
+      status: 'PENDING' | 'PARTIALLY_DISPENSED' | 'FULFILLED' | 'NOT_LINKED';
+    }>;
     procedures: string[];
     instructions: string;
   };
@@ -188,7 +230,42 @@ export const TRANSLATIONS = {
     cancelLogout: "Cancel & Logout",
     myProfile: "My Profile",
     manageSecurity: "Manage your account security",
-    changePassword: "Change Password"
+    changePassword: "Change Password",
+    pharmacyPortal: "Pharmacy Portal",
+    drugCatalog: "Drug Catalog",
+    drugName: "Drug Name",
+    drugForm: "Form",
+    drugStrength: "Strength",
+    drugUnit: "Unit",
+    stockQuantity: "Stock Quantity",
+    reorderThreshold: "Reorder Threshold",
+    expiryDate: "Expiry Date",
+    addDrug: "Add Drug",
+    editDrug: "Edit Drug",
+    deactivateDrug: "Deactivate Drug",
+    dispenseMedication: "Dispense Medication",
+    dispenseQuantity: "Quantity to Dispense",
+    selectDrug: "Select Drug",
+    selectMedicationLine: "Select Prescribed Medication",
+    quantityPrescribed: "Quantity Prescribed",
+    quantityDispensed: "Quantity Dispensed",
+    quantityRemaining: "Quantity Remaining",
+    notLinkedToInventory: "Not linked to pharmacy inventory",
+    pending: "Pending",
+    partiallyDispensed: "Partially Dispensed",
+    fulfilled: "Fulfilled",
+    lowStockWarning: "Low Stock Warning",
+    expiryWarning: "Expiry Warning",
+    expiredCannotDispense: "Expired - cannot dispense",
+    insufficientStock: "Insufficient stock",
+    confirmDispense: "Confirm Dispense",
+    dispenseSuccess: "Medication dispensed successfully",
+    drugCreated: "Drug added to catalog",
+    drugUpdated: "Drug updated",
+    duplicateDrug: "A drug with this name, form and strength already exists",
+    searchDrugs: "Search drugs...",
+    noDrugs: "No drugs in catalog",
+    customNotInCatalog: "Custom / not in catalog"
   },
   si: {
     title: "ClinQ",
@@ -292,6 +369,41 @@ export const TRANSLATIONS = {
     cancelLogout: "අවලංගු කර පිටවන්න",
     myProfile: "පරිශීලක ගිණුම",
     manageSecurity: "ඔබේ ගිණුමේ ආරක්ෂාව කළමනාකරණය කරන්න",
-    changePassword: "මුරපදය වෙනස් කරන්න"
+    changePassword: "මුරපදය වෙනස් කරන්න",
+    pharmacyPortal: "ඖෂධාගාර ද්වාරය",
+    drugCatalog: "ඖෂධ නාමාවලිය",
+    drugName: "ඖෂධයේ නම",
+    drugForm: "ස්වරූපය",
+    drugStrength: "ප්‍රබලත්වය",
+    drugUnit: "ඒකකය",
+    stockQuantity: "තොග ප්‍රමාණය",
+    reorderThreshold: "නැවත ඇණවුම් සීමාව",
+    expiryDate: "කල් ඉකුත් වන දිනය",
+    addDrug: "ඖෂධයක් එක් කරන්න",
+    editDrug: "ඖෂධය සංස්කරණය කරන්න",
+    deactivateDrug: "ඖෂධය අක්‍රීය කරන්න",
+    dispenseMedication: "ඖෂධ නිකුත් කරන්න",
+    dispenseQuantity: "නිකුත් කළ යුතු ප්‍රමාණය",
+    selectDrug: "ඖෂධය තෝරන්න",
+    selectMedicationLine: "නියම කළ ඖෂධය තෝරන්න",
+    quantityPrescribed: "නියම කළ ප්‍රමාණය",
+    quantityDispensed: "නිකුත් කළ ප්‍රමාණය",
+    quantityRemaining: "ඉතිරි ප්‍රමාණය",
+    notLinkedToInventory: "ඖෂධාගාර තොගයට සම්බන්ධ නොවේ",
+    pending: "විසඳා නොමැත",
+    partiallyDispensed: "අර්ධ වශයෙන් නිකුත් කර ඇත",
+    fulfilled: "සම්පූර්ණ කර ඇත",
+    lowStockWarning: "අඩු තොග අනතුරු ඇඟවීම",
+    expiryWarning: "කල් ඉකුත් වීමේ අනතුරු ඇඟවීම",
+    expiredCannotDispense: "කල් ඉකුත් වී ඇත - නිකුත් කළ නොහැක",
+    insufficientStock: "ප්‍රමාණවත් තොග නොමැත",
+    confirmDispense: "නිකුත් කිරීම තහවුරු කරන්න",
+    dispenseSuccess: "ඖෂධ සාර්ථකව නිකුත් කරන ලදී",
+    drugCreated: "ඖෂධය නාමාවලියට එක් කරන ලදී",
+    drugUpdated: "ඖෂධය යාවත්කාලීන කරන ලදී",
+    duplicateDrug: "මෙම නම, ස්වරූපය සහ ප්‍රබලත්වය සහිත ඖෂධයක් දැනටමත් පවතී",
+    searchDrugs: "ඖෂධ සොයන්න...",
+    noDrugs: "නාමාවලියේ ඖෂධ නොමැත",
+    customNotInCatalog: "අභිරුචි / නාමාවලියේ නොමැත"
   }
 };

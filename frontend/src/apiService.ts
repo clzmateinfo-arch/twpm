@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import axios from 'axios';
-import { Patient, Vitals, TriageLevel } from './types';
+import { Patient, Vitals, TriageLevel, Drug } from './types';
 import { io, Socket } from 'socket.io-client';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -18,7 +18,11 @@ axios.interceptors.request.use((config) => {
 });
 
 export const apiService = {
-  initSocket: (onPatientUpdated: (p: Patient) => void, onWardUpdated: (w: any) => void) => {
+  initSocket: (
+    onPatientUpdated: (p: Patient) => void,
+    onWardUpdated: (w: any) => void,
+    onDrugUpdated?: (d: Drug) => void
+  ) => {
     if (!socket) {
       socket = io(SOCKET_URL);
       socket.on('PATIENT_UPDATED', onPatientUpdated);
@@ -27,6 +31,28 @@ export const apiService = {
         if (Notification.permission === 'granted') {
           new Notification(`CRITICAL ALERT: ${p.name}`, {
             body: `Patient ${p.id} has critical vitals!`,
+            icon: '/vite.svg'
+          });
+        }
+      });
+      socket.on('DRUG_UPDATED', (d: Drug) => {
+        if (onDrugUpdated) onDrugUpdated(d);
+      });
+      socket.on('DRUG_LOW_STOCK', (d: Drug) => {
+        if (onDrugUpdated) onDrugUpdated(d);
+        if (Notification.permission === 'granted') {
+          new Notification(`Low Stock: ${d.name}`, {
+            body: `${d.name} (${d.strength}) is at ${d.stock} unit(s), at or below reorder threshold of ${d.reorderThreshold}.`,
+            icon: '/vite.svg'
+          });
+        }
+      });
+      socket.on('DRUG_EXPIRY_WARNING', (d: Drug) => {
+        if (onDrugUpdated) onDrugUpdated(d);
+        if (Notification.permission === 'granted') {
+          const expired = new Date(d.expiryDate) < new Date();
+          new Notification(`${expired ? 'Expired' : 'Expiry Warning'}: ${d.name}`, {
+            body: `${d.name} (${d.strength}) ${expired ? 'expired on' : 'expires on'} ${new Date(d.expiryDate).toLocaleDateString()}.`,
             icon: '/vite.svg'
           });
         }
@@ -88,5 +114,29 @@ export const apiService = {
 
   updateLanguage: async (language: 'en' | 'si'): Promise<void> => {
     await axios.post(`${API_URL}/auth/language`, { language });
+  },
+
+  fetchDrugs: async (): Promise<Drug[]> => {
+    const res = await axios.get(`${API_URL}/pharmacy/drugs`);
+    return res.data;
+  },
+
+  createDrug: async (drug: Omit<Drug, 'id' | 'active'>): Promise<Drug> => {
+    const res = await axios.post(`${API_URL}/pharmacy/drugs`, drug);
+    return res.data;
+  },
+
+  updateDrug: async (id: string, updates: Partial<Omit<Drug, 'id'>>): Promise<Drug> => {
+    const res = await axios.put(`${API_URL}/pharmacy/drugs/${id}`, updates);
+    return res.data;
+  },
+
+  deactivateDrug: async (id: string): Promise<void> => {
+    await axios.delete(`${API_URL}/pharmacy/drugs/${id}`);
+  },
+
+  dispenseMedication: async (patientId: string, medicationId: string, drugId: string, quantity: number): Promise<{ drug: Drug; patient: Patient }> => {
+    const res = await axios.post(`${API_URL}/pharmacy/dispense`, { patientId, medicationId, drugId, quantity });
+    return res.data;
   }
 };

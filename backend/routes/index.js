@@ -4,6 +4,7 @@ const Patient = require('../models/Patient');
 const Ward = require('../models/Ward');
 const AuditLog = require('../models/AuditLog');
 const User = require('../models/User');
+const Drug = require('../models/Drug');
 const { sendAlertEmail } = require('../mailer');
 const jwt = require('jsonwebtoken');
 
@@ -188,9 +189,81 @@ router.put('/patients/:id/discharge', async (req, res) => {
 router.put('/patients/:id/treatment', async (req, res) => {
     try {
         const { treatmentPlan } = req.body;
+        const existingPatient = await Patient.findOne({ id: req.params.id });
+        if (!existingPatient) return res.status(404).json({ error: 'Patient not found' });
+
+        const existingMedsById = new Map();
+        for (const m of existingPatient.treatmentPlan?.medications || []) {
+            existingMedsById.set(m._id.toString(), m);
+        }
+
+        const incomingMeds = treatmentPlan?.medications || [];
+        const normalizedMeds = [];
+
+        for (const incoming of incomingMeds) {
+            // This endpoint overwrites the whole treatmentPlan on every save, including
+            // from a doctor's UI that may hold a stale local copy. Dispensing progress
+            // (drugId/quantityPrescribed/dispensedQuantity/status) is only ever mutated
+            // by POST /api/pharmacy/dispense — the client is never the source of truth
+            // for it, so an existing line's values are always taken from the DB, never
+            // from whatever the client echoes back.
+            const existing = incoming._id ? existingMedsById.get(String(incoming._id)) : null;
+
+            if (existing) {
+                normalizedMeds.push({
+                    _id: existing._id,
+                    name: incoming.name ?? existing.name,
+                    dosage: incoming.dosage ?? existing.dosage,
+                    frequency: incoming.frequency ?? existing.frequency,
+                    drugId: existing.drugId,
+                    quantityPrescribed: existing.quantityPrescribed,
+                    dispensedQuantity: existing.dispensedQuantity,
+                    status: existing.status
+                });
+                continue;
+            }
+
+            // New medication line.
+            if (!incoming.name) {
+                return res.status(400).json({ error: 'Each medication requires a name' });
+            }
+
+            if (incoming.drugId) {
+                const drug = await Drug.findOne({ id: incoming.drugId });
+                if (!drug || !drug.active) {
+                    return res.status(400).json({ error: `Selected drug (${incoming.drugId}) not found or inactive` });
+                }
+                const qty = Number(incoming.quantityPrescribed);
+                if (!Number.isFinite(qty) || qty <= 0) {
+                    return res.status(400).json({ error: 'quantityPrescribed must be a positive number when a catalog drug is selected' });
+                }
+                normalizedMeds.push({
+                    name: incoming.name,
+                    dosage: incoming.dosage,
+                    frequency: incoming.frequency,
+                    drugId: incoming.drugId,
+                    quantityPrescribed: qty,
+                    dispensedQuantity: 0,
+                    status: 'PENDING'
+                });
+            } else {
+                // Custom / not-in-catalog: server forces non-dispensable
+                // defaults regardless of anything else the client sent.
+                normalizedMeds.push({
+                    name: incoming.name,
+                    dosage: incoming.dosage,
+                    frequency: incoming.frequency,
+                    drugId: null,
+                    quantityPrescribed: null,
+                    dispensedQuantity: 0,
+                    status: 'NOT_LINKED'
+                });
+            }
+        }
+
         const patient = await Patient.findOneAndUpdate(
             { id: req.params.id },
-            { treatmentPlan },
+            { treatmentPlan: { ...treatmentPlan, medications: normalizedMeds } },
             { new: true }
         );
         await addLog(req, 'TREATMENT_UPDATED', `Updated treatment plan for patient ${patient.name} (${req.params.id})`);

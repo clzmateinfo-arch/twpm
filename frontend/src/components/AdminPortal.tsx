@@ -297,6 +297,7 @@ export const UserManagement: React.FC = () => {
               <select value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white">
                 <option value="NURSE">{t.nursePortal}</option>
                 <option value="DOCTOR">{t.doctorPortal}</option>
+                <option value="PHARMACIST">{t.pharmacyPortal}</option>
                 <option value="ADMIN">{t.adminPortal}</option>
               </select>
             </div>

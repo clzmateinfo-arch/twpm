@@ -34,7 +34,15 @@ const PatientSchema = new mongoose.Schema({
         timestamp: { type: Date, default: Date.now }
     }],
     treatmentPlan: {
-        medications: [{ name: String, dosage: String, frequency: String }],
+        medications: [{
+            drugId: { type: String, default: null },
+            name: { type: String, required: true },
+            dosage: String,
+            frequency: String,
+            quantityPrescribed: { type: Number, default: null },
+            dispensedQuantity: { type: Number, default: 0 },
+            status: { type: String, enum: ['PENDING', 'PARTIALLY_DISPENSED', 'FULFILLED', 'NOT_LINKED'], default: 'NOT_LINKED' }
+        }],
         procedures: [String],
         instructions: String
     },

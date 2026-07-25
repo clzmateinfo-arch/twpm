@@ -14,7 +14,8 @@ import {
   Menu,
   X,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  Pill
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -55,6 +56,7 @@ export const Layout: React.FC<{
     { id: 'vitals', label: t.vitalSigns, icon: <Activity size={20} />, roles: [UserRole.NURSE, UserRole.ADMIN] },
     { id: 'queue', label: t.priorityQueue, icon: <ClipboardList size={20} />, roles: [UserRole.DOCTOR, UserRole.NURSE, UserRole.ADMIN] },
     { id: 'wards', label: t.wardManagement, icon: <Stethoscope size={20} />, roles: [UserRole.ADMIN, UserRole.DOCTOR] },
+    { id: 'pharmacy', label: t.pharmacyPortal, icon: <Pill size={20} />, roles: [UserRole.PHARMACIST, UserRole.ADMIN] },
     { id: 'users', label: t.userDirectory, icon: <UserPlus size={20} />, roles: [UserRole.ADMIN] },
     { id: 'audit', label: t.auditTrail, icon: <ShieldCheck size={20} />, roles: [UserRole.ADMIN, UserRole.IT_SUPPORT] },
     { id: 'settings', label: t.settings, icon: <Settings size={20} />, roles: [UserRole.ADMIN, UserRole.IT_SUPPORT] },
