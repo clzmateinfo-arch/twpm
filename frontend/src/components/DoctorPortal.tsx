@@ -120,7 +120,7 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
   const [activeTab, setActiveTab] = useState<'vitals' | 'treatment' | 'discharge'>('vitals');
 
   // Treatment Form
-  const [selectedDrugId, setSelectedDrugId] = useState(''); // '' = custom/not-in-catalog
+  const [selectedDrugId, setSelectedDrugId] = useState(''); // '' = nothing chosen yet (invalid); see full sentinel doc below
   const [medName, setMedName] = useState('');
   const [medDosage, setMedDosage] = useState('');
   const [medFreq, setMedFreq] = useState('');
@@ -330,14 +330,30 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
 
             {activeTab === 'treatment' && (
               <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
-                <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-800">
+                <div data-testid="prescribe-card" className="bg-slate-800/50 p-6 rounded-2xl border border-slate-800">
                   <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4 flex items-center">
                     <Activity size={14} className="mr-2" /> {t.prescribeMed}
                   </h4>
                   <div className="space-y-2 mb-4">
-                    <div className="flex gap-2">
+                    {/*
+                      The modal wrapper (see the outer PatientDetailView container below)
+                      has `overflow-hidden` with only vertical scroll on its content area —
+                      any element that overflows this card HORIZONTALLY is silently clipped,
+                      not scrollable. A single unbreakable `flex` row cramming a <select>,
+                      up to 2 text inputs, a number input, and a button reliably exceeded the
+                      card's ~485px width (browsers give a bare <input>/<select> an intrinsic
+                      minimum content width well past what `flex-1` alone can shrink below),
+                      clipping the Add button out of the interactive area. Fix: `flex-wrap` so
+                      excess items drop to a new line instead of forcing overflow (this holds
+                      regardless of viewport width, translation string length — Sinhala labels
+                      run longer than English — or how many/how long the catalog drug names
+                      are), each field gets an explicit min-w so it never gets squeezed to
+                      unusable width, and the Add button is pulled onto its own full-width row
+                      so its clickability never depends on how much space the inputs consumed.
+                    */}
+                    <div data-testid="drug-row" className="flex flex-wrap gap-2">
                       <select value={selectedDrugId} onChange={e => setSelectedDrugId(e.target.value)}
-                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        className="flex-1 min-w-[180px] bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
                         <option value="" disabled>-- {t.selectDrug} --</option>
                         {activeDrugs.map(d => (
                           <option key={d.id} value={d.id}>{d.name} {d.strength} ({d.form}) — {d.stock} {d.unit}(s) in stock</option>
@@ -345,20 +361,23 @@ export const PatientDetailView: React.FC<{ patient: Patient; onClose: () => void
                         <option value="CUSTOM">{t.customNotInCatalog}</option>
                       </select>
                       {selectedDrugId === 'CUSTOM' && (
-                        <input type="text" placeholder="Name" value={medName} onChange={e => setMedName(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                        <input type="text" placeholder="Name" value={medName} onChange={e => setMedName(e.target.value)} className="flex-1 min-w-[140px] bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
                       )}
                     </div>
                     {selectedDrugId === 'CUSTOM' && (
                       <p className="text-amber-500 text-xs font-bold flex items-center"><AlertTriangle size={12} className="mr-1" /> {t.notLinkedToInventory} — this will not be dispensable through the Pharmacy Portal.</p>
                     )}
-                    <div className="flex gap-2">
-                      <input type="text" placeholder="Dosage" value={medDosage} onChange={e => setMedDosage(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
-                      <input type="text" placeholder="Freq" value={medFreq} onChange={e => setMedFreq(e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                    <div data-testid="prescribe-row" className="flex flex-wrap gap-2">
+                      <input type="text" placeholder="Dosage" value={medDosage} onChange={e => setMedDosage(e.target.value)} className="flex-1 min-w-[110px] bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                      <input type="text" placeholder="Freq" value={medFreq} onChange={e => setMedFreq(e.target.value)} className="flex-1 min-w-[110px] bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
                       {selectedDrugId && selectedDrugId !== 'CUSTOM' && (
-                        <input type="number" min={0} step="any" placeholder={t.quantityPrescribed} value={medQuantity} onChange={e => setMedQuantity(e.target.value)} className="w-32 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                        <input type="number" min={0} step="any" placeholder={t.quantityPrescribed} value={medQuantity} onChange={e => setMedQuantity(e.target.value)} className="flex-1 min-w-[110px] bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" />
                       )}
-                      <button onClick={handleAddMedication} disabled={!selectedDrugId || (selectedDrugId === 'CUSTOM' ? !medName : !medQuantity)} className="p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg disabled:opacity-50"><Plus size={20} /></button>
                     </div>
+                    <button data-testid="add-medication-btn" onClick={handleAddMedication} disabled={!selectedDrugId || (selectedDrugId === 'CUSTOM' ? !medName : !medQuantity)}
+                      className="w-full flex items-center justify-center bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold py-2 rounded-lg text-sm transition-all">
+                      <Plus size={16} className="mr-2" /> {t.addDrug}
+                    </button>
                     {medError && <p className="text-rose-500 text-xs font-bold flex items-center"><AlertTriangle size={12} className="mr-1" /> {medError}</p>}
                   </div>
                   <div className="space-y-2">
