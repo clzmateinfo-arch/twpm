@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useHospital } from '../HospitalContext';
 import {
   Drug, DrugForm, DRUG_UNITS, DrugUnit, isFractionalDrugUnit, DRUG_EXPIRY_WARNING_DAYS, TRANSLATIONS
@@ -289,14 +289,30 @@ const DispenseView: React.FC = () => {
   const [lineMessages, setLineMessages] = useState<Record<string, { type: 'error' | 'success'; text: string } | undefined>>({});
   const [busyLine, setBusyLine] = useState<string | null>(null);
 
+  // Shows every non-discharged patient with ANY prescribed medication — not just
+  // ones with a pharmacy-linked, dispensable line. A patient whose only
+  // medications are "Custom / not in catalog" (drugId: null) or already
+  // FULFILLED is still shown, with each line's status/reason visible, rather
+  // than the patient silently disappearing from this list. Prescribing a
+  // catalog drug without dispensable quantity remaining, or only ever adding
+  // custom entries, previously made the whole list empty with no explanation.
   const candidatePatients = patients.filter(p =>
     p.status !== 'DISCHARGED' &&
-    p.treatmentPlan?.medications?.some(m => m.drugId && m.status !== 'FULFILLED') &&
+    (p.treatmentPlan?.medications?.length || 0) > 0 &&
     (p.name.toLowerCase().includes(search.toLowerCase()) || p.id.toLowerCase().includes(search.toLowerCase()))
   );
 
   const selectedPatient = patients.find(p => p.id === selectedPatientId) || null;
-  const pendingMeds = (selectedPatient?.treatmentPlan?.medications || []).filter(m => m.drugId && m.status !== 'FULFILLED');
+  const allMeds = selectedPatient?.treatmentPlan?.medications || [];
+
+  const getBlockReason = (med: typeof allMeds[number], drug: Drug | undefined): string | null => {
+    if (!med.drugId) return t.notLinkedToInventory;
+    if (med.status === 'FULFILLED') return t.fulfilled;
+    if (!drug) return 'Drug not found in catalog';
+    if (!drug.active) return 'Drug is inactive';
+    if (isExpired(drug)) return t.expiredCannotDispense;
+    return null;
+  };
 
   const handleDispense = async (medicationId: string, drugId: string, remaining: number) => {
     const raw = quantities[medicationId];
@@ -352,7 +368,7 @@ const DispenseView: React.FC = () => {
             </button>
           ))}
           {candidatePatients.length === 0 && (
-            <p className="text-xs text-slate-500 italic p-4 text-center">No patients with pending pharmacy-linked prescriptions</p>
+            <p className="text-xs text-slate-500 italic p-4 text-center">No patients with any prescribed medications yet</p>
           )}
         </div>
       </div>
@@ -365,39 +381,54 @@ const DispenseView: React.FC = () => {
 
         {!selectedPatient && <p className="text-sm text-slate-500 italic">Select a patient to view their prescribed medications.</p>}
 
-        {selectedPatient && pendingMeds.length === 0 && (
-          <p className="text-sm text-slate-500 italic">No pending pharmacy-linked prescriptions for this patient.</p>
+        {selectedPatient && allMeds.length === 0 && (
+          <p className="text-sm text-slate-500 italic">No medications have been prescribed for this patient yet.</p>
         )}
 
-        {selectedPatient && pendingMeds.map(med => {
-          const drug = drugs.find(d => d.id === med.drugId);
+        {selectedPatient && allMeds.map(med => {
+          const drug = med.drugId ? drugs.find(d => d.id === med.drugId) : undefined;
           const remaining = (med.quantityPrescribed || 0) - med.dispensedQuantity;
           const msg = lineMessages[med._id || ''];
-          const blocked = !drug || !drug.active || (drug && isExpired(drug));
+          const blockReason = getBlockReason(med, drug);
+          const blocked = !!blockReason;
+          const statusStyles: Record<string, string> = {
+            PENDING: 'bg-slate-700 text-slate-300',
+            PARTIALLY_DISPENSED: 'bg-amber-500/20 text-amber-500',
+            FULFILLED: 'bg-emerald-500/20 text-emerald-500',
+            NOT_LINKED: 'bg-slate-800 text-slate-500'
+          };
+          const statusLabel: Record<string, string> = {
+            PENDING: t.pending,
+            PARTIALLY_DISPENSED: t.partiallyDispensed,
+            FULFILLED: t.fulfilled,
+            NOT_LINKED: t.notLinkedToInventory
+          };
+          const status = med.status || 'NOT_LINKED';
 
           return (
-            <div key={med._id} className="bg-slate-800/50 p-5 rounded-2xl border border-slate-800 mb-4">
+            <div key={med._id} className={`bg-slate-800/50 p-5 rounded-2xl border border-slate-800 mb-4 ${blocked ? 'opacity-70' : ''}`}>
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <p className="text-sm font-bold text-white">{med.name} {drug ? `(${drug.strength})` : ''}</p>
                   <p className="text-[10px] text-slate-500 uppercase tracking-widest">{med.dosage} • {med.frequency}</p>
                 </div>
-                <span className={`px-2 py-1 text-[10px] uppercase font-bold tracking-widest rounded ${med.status === 'PARTIALLY_DISPENSED' ? 'bg-amber-500/20 text-amber-500' : 'bg-slate-700 text-slate-300'}`}>
-                  {med.status === 'PARTIALLY_DISPENSED' ? t.partiallyDispensed : t.pending}
+                <span className={`px-2 py-1 text-[10px] uppercase font-bold tracking-widest rounded ${statusStyles[status]}`}>
+                  {statusLabel[status]}
                 </span>
               </div>
 
-              <div className="flex items-center gap-4 text-xs text-slate-400 mb-3">
-                <span>{t.quantityPrescribed}: {med.quantityPrescribed}</span>
-                <span>{t.quantityDispensed}: {med.dispensedQuantity}</span>
-                <span className="font-bold text-white">{t.quantityRemaining}: {remaining}</span>
-                {drug && <span className={isLowStock(drug) ? 'text-rose-500 font-bold' : ''}>Stock: {drug.stock} {drug.unit}(s)</span>}
-              </div>
+              {med.drugId && (
+                <div className="flex items-center gap-4 text-xs text-slate-400 mb-3">
+                  <span>{t.quantityPrescribed}: {med.quantityPrescribed}</span>
+                  <span>{t.quantityDispensed}: {med.dispensedQuantity}</span>
+                  <span className="font-bold text-white">{t.quantityRemaining}: {remaining}</span>
+                  {drug && <span className={isLowStock(drug) ? 'text-rose-500 font-bold' : ''}>Stock: {drug.stock} {drug.unit}(s)</span>}
+                </div>
+              )}
 
-              {blocked && (
+              {blockReason && (
                 <p className="text-xs text-rose-500 font-bold mb-3 flex items-center">
-                  <AlertTriangle size={12} className="mr-1" />
-                  {!drug ? 'Drug not found' : !drug.active ? 'Drug is inactive' : t.expiredCannotDispense}
+                  <AlertTriangle size={12} className="mr-1" /> {blockReason}
                 </p>
               )}
 
@@ -408,7 +439,7 @@ const DispenseView: React.FC = () => {
                   disabled={blocked}
                   className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white disabled:opacity-50" />
                 <button
-                  onClick={() => handleDispense(med._id!, med.drugId!, remaining)}
+                  onClick={() => med.drugId && handleDispense(med._id!, med.drugId, remaining)}
                   disabled={blocked || busyLine === med._id}
                   className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-bold px-6 py-2 rounded-lg text-sm transition-all">
                   {busyLine === med._id ? '...' : t.dispenseMedication}
@@ -430,9 +461,21 @@ const DispenseView: React.FC = () => {
 };
 
 export const PharmacyPortal: React.FC = () => {
-  const { language } = useHospital();
+  const { language, refreshData, refreshDrugs } = useHospital();
   const t = TRANSLATIONS[language];
   const [activeTab, setActiveTab] = useState<'catalog' | 'dispense'>('catalog');
+
+  // Patient registration (POST /patients) doesn't broadcast a socket event
+  // (verified by reading routes/index.js — unlike every mutating route it
+  // has no req.io.emit call), so a pharmacist's `patients` state fetched at
+  // login can be missing patients registered/prescribed afterward until
+  // something refetches it. App.tsx unmounts this component whenever the
+  // user navigates away from the Pharmacy tab, so this mount-time refresh
+  // re-runs every time they navigate back into it.
+  useEffect(() => {
+    refreshData();
+    refreshDrugs();
+  }, []);
 
   return (
     <div className="space-y-6">
