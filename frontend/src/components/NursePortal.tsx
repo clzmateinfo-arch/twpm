@@ -10,6 +10,7 @@ export const PatientRegistration: React.FC = () => {
   const t = TRANSLATIONS[language];
   const [formData, setFormData] = useState({
     name: '',
+    age:'',
     nic: '',
     dob: '',
     gender: Gender.MALE,
@@ -37,7 +38,7 @@ export const PatientRegistration: React.FC = () => {
         triageLevel: TriageLevel.NON_URGENT
       });
       setSuccess(true);
-      setFormData({ name: '', nic: '', dob: '', gender: Gender.MALE, contact: '', address: '' });
+      setFormData({ name: '', age: '', nic: '', dob: '', gender: Gender.MALE, contact: '', address: '' });
       setSelectedSymptoms([]);
       setCustomSymptom('');
       setTimeout(() => setSuccess(false), 3000);
@@ -73,6 +74,15 @@ export const PatientRegistration: React.FC = () => {
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
                 placeholder={t.name}
+              />
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">{t.age}</label>
+              <input
+                required
+                type="number"
+                value={formData.age}
+                onChange={e => setFormData({ ...formData, age: e.target.value })}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
+                placeholder={t.age}
               />
             </div>
             <div className="space-y-2">

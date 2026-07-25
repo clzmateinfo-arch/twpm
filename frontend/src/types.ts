@@ -30,6 +30,7 @@ export interface Patient {
   id: string;
   nic: string;
   name: string;
+  age:number;
   dob: string;
   gender: Gender;
   contact: string;
@@ -105,6 +106,7 @@ export const TRANSLATIONS = {
     userDirectory: "User Directory",
     settings: "Settings",
     name: "Name",
+    age: "Age",
     nic: "NIC / Patient ID",
     dob: "Date of Birth",
     gender: "Gender",
@@ -209,6 +211,7 @@ export const TRANSLATIONS = {
     userDirectory: "පරිශීලක ලැයිස්තුව",
     settings: "සැකසුම්",
     name: "නම",
+    age: "වයස",
     nic: "ජාතික හැඳුනුම්පත් අංකය",
     dob: "උපන් දිනය",
     gender: "ස්ත්‍රී/පුරුෂ භාවය",

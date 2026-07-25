@@ -32,16 +32,17 @@ router.get('/data', async (req, res) => {
         let wards = await Ward.find();
         const auditLogs = await AuditLog.find().sort({ timestamp: -1 });
 
-        if (wards.length === 0) {
+         await Ward.deleteMany({});
             const BASE_WARDS = [
                 { id: 'W1', name: 'General Ward - Male', capacity: 20, occupied: 0, type: 'General' },
                 { id: 'W2', name: 'General Ward - Female', capacity: 20, occupied: 0, type: 'General' },
                 { id: 'W3', name: 'Emergency Care Unit', capacity: 5, occupied: 0, type: 'Emergency' },
-                { id: 'W4', name: 'Pediatric Ward', capacity: 10, occupied: 0, type: 'Specialized' }
+                { id: 'W4', name: 'Pediatric Ward', capacity: 10, occupied: 0, type: 'Specialized' },
+                {id: 'W5', name: 'Maternity Ward', capacity: 11, occupied: 0, type: 'Specialized'},
             ];
             await Ward.insertMany(BASE_WARDS);
             wards = await Ward.find();
-        }
+        
 
         res.json({ patients, wards, auditLogs });
     } catch (err) {

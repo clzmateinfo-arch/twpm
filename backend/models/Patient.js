@@ -4,11 +4,12 @@ const encrypt = require('mongoose-encryption');
 const PatientSchema = new mongoose.Schema({
     id: String,
     nic: String,
+    address: String,
     name: String,
+    age: Number,
     dob: String,
     gender: String,
     contact: String,
-    address: String,
     registrationDate: Date,
     vitals: {
         temperature: Number,
@@ -16,7 +17,8 @@ const PatientSchema = new mongoose.Schema({
         bpSystolic: Number,
         bpDiastolic: Number,
         respiratoryRate: Number,
-        spo2: Number
+        spo2: Number,
+        pressure:Number
     },
     symptoms: [String],
     triageLevel: String,

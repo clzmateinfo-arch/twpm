@@ -26,7 +26,8 @@ const authMiddleware = require('../middleware/auth');
 router.use(authMiddleware);
 router.use(adminMiddleware);
 
-router.get('/', async (req, res) => {
+router.get('/', async (req, res) =>{
+
     try {
         const users = await User.find({}, '-password');
         res.json(users);
