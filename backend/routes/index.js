@@ -34,13 +34,7 @@ router.get('/data', async (req, res) => {
         const auditLogs = await AuditLog.find().sort({ timestamp: -1 });
 
         if (wards.length === 0) {
-            const BASE_WARDS = [
-                { id: 'W1', name: 'General Ward - Male', capacity: 20, occupied: 0, type: 'General' },
-                { id: 'W2', name: 'General Ward - Female', capacity: 20, occupied: 0, type: 'General' },
-                { id: 'W3', name: 'Emergency Care Unit', capacity: 5, occupied: 0, type: 'Emergency' },
-                { id: 'W4', name: 'Pediatric Ward', capacity: 10, occupied: 0, type: 'Specialized' }
-            ];
-            await Ward.insertMany(BASE_WARDS);
+            await Ward.insertMany([]);
             wards = await Ward.find();
         }
 
